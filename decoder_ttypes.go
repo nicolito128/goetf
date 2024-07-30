@@ -38,6 +38,11 @@ func (dec *Decoder[E]) readSmallBig() (int, []byte, error) {
 	if err != nil {
 		return 0, nil, ErrMalformedSmallBig
 	}
+	size := int(n)
+
+	if dec.rd.Size() < (size + 1) {
+		return 0, nil, ErrMalformedSmallBig
+	}
 
 	// positive or negative sign
 	sign, err := dec.rd.ReadByte()
@@ -45,7 +50,6 @@ func (dec *Decoder[E]) readSmallBig() (int, []byte, error) {
 		return 0, nil, ErrMalformedSmallBig
 	}
 
-	size := int(n)
 	// fill with 0 to allow parsing
 	if size < 8 {
 		size += 8 - size
