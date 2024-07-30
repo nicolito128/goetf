@@ -187,6 +187,7 @@ func (dec *Decoder[E]) parseNewFloat(b []byte) float64 {
 }
 
 func (dec *Decoder[E]) parseFloat(b []byte) float64 {
+	// todo: change to use string float IEEE format
 	bits := binary.LittleEndian.Uint64(b)
 	float := math.Float64frombits(bits)
 	return float
