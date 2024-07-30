@@ -162,13 +162,38 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 		for i := 0; i < arity; i++ {
 			bflag, err := dec.rd.ReadByte()
 			if err != nil {
-				return err
+				return ErrMalformedSmallTuple
 			}
 			flag := ExternalTagType(bflag)
 
 			_, b, err := dec.readType(flag)
 			if err != nil {
-				return err
+				return ErrMalformedSmallTuple
+			}
+
+			(*dist)[i] = Term(dec.parseType(flag, b)).(E)
+		}
+
+	case EttLargeTuple:
+		b := make([]byte, SizeLargeTupleArity)
+		_, err := dec.rd.Read(b)
+		if err != nil {
+			return ErrMalformedLargeTuple
+		}
+
+		arity := int(dec.parseInteger(b))
+
+		dist := (v).(*[]E)
+		for i := 0; i < arity; i++ {
+			bflag, err := dec.rd.ReadByte()
+			if err != nil {
+				return ErrMalformedLargeTuple
+			}
+			flag := ExternalTagType(bflag)
+
+			_, b, err := dec.readType(flag)
+			if err != nil {
+				return ErrMalformedLargeTuple
 			}
 
 			(*dist)[i] = Term(dec.parseType(flag, b)).(E)

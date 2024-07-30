@@ -36,6 +36,19 @@ func TestDecodeFloat(t *testing.T) {
 	if want != data {
 		t.Errorf("want = %v, got = %v", want, data)
 	}
+
+	// negative
+	data = 0.0
+	b2 := []byte{131, 70, 192, 4, 184, 81, 235, 133, 30, 184}
+	if err := dec.DecodePacket(b2, &data); err != nil {
+		t.Fatal(err)
+	}
+
+	want = -2.59
+	if want != data {
+		t.Errorf("want = %v, got = %v", want, data)
+
+	}
 }
 
 func TestDecodeAtomUTF8(t *testing.T) {
@@ -104,6 +117,22 @@ func TestDecodeSmallTuple(t *testing.T) {
 	}
 
 	var want = []uint8{1, 2}
+	if slices.Compare(want, data) != 0 {
+		t.Errorf("want = %v, got = %v", want, data)
+	}
+}
+
+func TestDecodeLargeTuple(t *testing.T) {
+	data := make([]uint8, 2)
+
+	b := []byte{131, 105, 0, 0, 0, 2, 97, 128, 97, 255}
+	dec := NewDecoder[uint8](bytes.NewReader(b))
+
+	if err := dec.Decode(&data); err != nil {
+		t.Fatal(err)
+	}
+
+	var want = []uint8{128, 255}
 	if slices.Compare(want, data) != 0 {
 		t.Errorf("want = %v, got = %v", want, data)
 	}
