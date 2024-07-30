@@ -158,14 +158,14 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 		}
 
 		arity := int(sb)
+		dist := (v).(*[]E)
 		for i := 0; i < arity; i++ {
-			br, err := dec.rd.ReadByte()
+			bflag, err := dec.rd.ReadByte()
 			if err != nil {
 				return err
 			}
+			flag := ExternalTagType(bflag)
 
-			flag := ExternalTagType(br)
-			dist := (v).(*[]E)
 			_, b, err := dec.readType(flag)
 			if err != nil {
 				return err
