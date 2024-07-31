@@ -3,7 +3,6 @@ package goetf
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"reflect"
 
@@ -15,7 +14,6 @@ type Decoder struct {
 	buf       []byte
 	rd        *bufio.Reader
 	atomCache *intern.Intern
-	ref       any
 	// todo: mu        sync.Mutex
 }
 
@@ -384,7 +382,6 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			value := dec.parseType(valueFlag, b)
 
 			// Set key and value
-			fmt.Println(key, value)
 			vOf.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
 		}
 	}
