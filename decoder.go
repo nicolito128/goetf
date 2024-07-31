@@ -91,7 +91,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 
 		ptr, ok := (v).(*string)
 		if !ok {
-			return ErrMalformedAtomUTF8
+			return ErrDecodeType
 		}
 
 		(*ptr) = dec.parseString(b)
@@ -107,7 +107,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			(*v) = dec.parseString(b)
 
 		default:
-			return ErrMalformed
+			return ErrDecodeType
 		}
 
 	case EttSmallInteger:
@@ -127,7 +127,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			(*v) = int(dec.parseSmallInteger(b))
 
 		default:
-			return ErrMalformed
+			return ErrDecodeType
 		}
 
 	case EttInteger:
@@ -144,7 +144,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			(*v) = int(dec.parseInteger(b))
 
 		default:
-			return ErrMalformed
+			return ErrDecodeType
 		}
 
 	case EttFloat:
@@ -161,7 +161,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			(*v) = float32(dec.parseNewFloat(b))
 
 		default:
-			return ErrMalformed
+			return ErrDecodeType
 		}
 
 	case EttNewFloat:
@@ -178,7 +178,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			(*v) = float32(dec.parseNewFloat(b))
 
 		default:
-			return ErrMalformed
+			return ErrDecodeType
 		}
 
 	case EttSmallBig:
@@ -199,7 +199,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			(*v) = int(dec.parseInteger(b))
 
 		default:
-			return ErrMalformedSmallBig
+			return ErrDecodeType
 		}
 
 	case EttBinary:
@@ -213,7 +213,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			(*v) = b
 
 		default:
-			return ErrMalformed
+			return ErrDecodeType
 		}
 
 	case EttSmallTuple:

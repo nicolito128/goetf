@@ -31,4 +31,5 @@ var (
 	ErrMalformed              = fmt.Errorf("malformed ETF")
 
 	ErrNilDecodeValue = fmt.Errorf("value to decode is nil")
+	ErrDecodeType     = fmt.Errorf("v type to be decoded is invalid")
 )
