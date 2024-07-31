@@ -4,26 +4,27 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"reflect"
 
 	"github.com/philpearl/intern"
 )
 
 // Decoder allows embedding ETF byte slices into valid Go code.
-type Decoder[E Term] struct {
+type Decoder struct {
 	rd        *bufio.Reader
 	atomCache *intern.Intern
 	// todo: mu        sync.Mutex
 }
 
-func NewDecoder[E Term](rd io.Reader) *Decoder[E] {
-	return &Decoder[E]{
+func NewDecoder(rd io.Reader) *Decoder {
+	return &Decoder{
 		rd:        bufio.NewReader(rd),
 		atomCache: intern.New(2048),
 	}
 }
 
 // Decode reads the next ETF-encoded value from its input and stores it in the value pointed to by v.
-func (dec *Decoder[E]) Decode(v any) error {
+func (dec *Decoder) Decode(v any) error {
 	if v == nil {
 		return ErrNilDecodeValue
 	}
@@ -32,7 +33,7 @@ func (dec *Decoder[E]) Decode(v any) error {
 }
 
 // DecodePacket reads the next ETF-encoded packet and stores it in the value pointed to by v.
-func (dec *Decoder[E]) DecodePacket(packet []byte, v any) error {
+func (dec *Decoder) DecodePacket(packet []byte, v any) error {
 	if v == nil {
 		return ErrNilDecodeValue
 	}
@@ -41,7 +42,7 @@ func (dec *Decoder[E]) DecodePacket(packet []byte, v any) error {
 	return dec.decode(v)
 }
 
-func (dec *Decoder[E]) decode(v any) error {
+func (dec *Decoder) decode(v any) error {
 	if dec.rd.Size() == 0 {
 		return ErrMalformed
 	}
@@ -83,7 +84,7 @@ func (dec *Decoder[E]) decode(v any) error {
 	}
 }
 
-func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
+func (dec *Decoder) decodeStatic(b ExternalTagType, v any) error {
 	switch b {
 	case EttAtom, EttAtomUTF8:
 		_, b, err := dec.readAtomUTF8()
@@ -91,10 +92,26 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 			return err
 		}
 
-		parsed := dec.parseAtom(b)
+		ptr, ok := (v).(*string)
+		if !ok {
+			return ErrMalformedAtomUTF8
+		}
 
-		value := (v).(*E)
-		(*value) = Term(parsed).(E)
+		(*ptr) = dec.parseString(b)
+
+	case EttString:
+		_, b, err := dec.readString()
+		if err != nil {
+			return err
+		}
+
+		switch v := v.(type) {
+		case *string:
+			(*v) = dec.parseString(b)
+
+		default:
+			return ErrMalformed
+		}
 
 	case EttSmallInteger:
 		_, b, err := dec.readSmallInteger()
@@ -102,10 +119,16 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 			return err
 		}
 
-		parsed := dec.parseSmallInteger(b)
+		switch v := v.(type) {
+		case *uint8:
+			(*v) = dec.parseSmallInteger(b)
 
-		value := (v).(*E)
-		(*value) = Term(parsed).(E)
+		case *uint:
+			(*v) = uint(dec.parseSmallInteger(b))
+
+		default:
+			return ErrMalformed
+		}
 
 	case EttInteger:
 		_, b, err := dec.readInteger()
@@ -113,10 +136,16 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 			return err
 		}
 
-		parsed := dec.parseInteger(b)
+		switch v := v.(type) {
+		case *int32:
+			(*v) = dec.parseInteger(b)
 
-		value := (v).(*E)
-		(*value) = Term(parsed).(E)
+		case *int:
+			(*v) = int(dec.parseInteger(b))
+
+		default:
+			return ErrMalformed
+		}
 
 	case EttFloat:
 		_, b, err := dec.readFloat()
@@ -124,10 +153,16 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 			return err
 		}
 
-		parsed := dec.parseFloat(b)
+		switch v := v.(type) {
+		case *float64:
+			(*v) = dec.parseFloat(b)
 
-		value := (v).(*E)
-		(*value) = Term(parsed).(E)
+		case *float32:
+			(*v) = float32(dec.parseNewFloat(b))
+
+		default:
+			return ErrMalformed
+		}
 
 	case EttNewFloat:
 		_, b, err := dec.readNewFloat()
@@ -135,10 +170,16 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 			return err
 		}
 
-		parsed := dec.parseNewFloat(b)
+		switch v := v.(type) {
+		case *float64:
+			(*v) = dec.parseNewFloat(b)
 
-		value := (v).(*E)
-		(*value) = Term(parsed).(E)
+		case *float32:
+			(*v) = float32(dec.parseNewFloat(b))
+
+		default:
+			return ErrMalformed
+		}
 
 	case EttSmallBig:
 		_, b, err := dec.readSmallBig()
@@ -146,10 +187,16 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 			return err
 		}
 
-		parsed := dec.parseSmallBig(b)
+		switch v := v.(type) {
+		case *int64:
+			(*v) = dec.parseSmallBig(b)
 
-		value := (v).(*E)
-		(*value) = Term(parsed).(E)
+		case *int:
+			(*v) = int(dec.parseInteger(b))
+
+		default:
+			return ErrMalformed
+		}
 
 	case EttSmallTuple:
 		sb, err := dec.rd.ReadByte()
@@ -158,7 +205,8 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 		}
 
 		arity := int(sb)
-		dist := (v).(*[]E)
+
+		vOf := reflect.ValueOf(v)
 		for i := 0; i < arity; i++ {
 			bflag, err := dec.rd.ReadByte()
 			if err != nil {
@@ -171,7 +219,8 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 				return ErrMalformedSmallTuple
 			}
 
-			(*dist)[i] = Term(dec.parseType(flag, b)).(E)
+			item := dec.parseType(flag, b)
+			vOf.Index(i).Set(reflect.ValueOf(item))
 		}
 
 	case EttLargeTuple:
@@ -183,7 +232,7 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 
 		arity := int(dec.parseInteger(b))
 
-		dist := (v).(*[]E)
+		vOf := reflect.ValueOf(v)
 		for i := 0; i < arity; i++ {
 			bflag, err := dec.rd.ReadByte()
 			if err != nil {
@@ -196,7 +245,8 @@ func (dec *Decoder[E]) decodeStatic(b ExternalTagType, v any) error {
 				return ErrMalformedLargeTuple
 			}
 
-			(*dist)[i] = Term(dec.parseType(flag, b)).(E)
+			item := dec.parseType(flag, b)
+			vOf.Index(i).Set(reflect.ValueOf(item))
 		}
 	}
 

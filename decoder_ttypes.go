@@ -8,7 +8,7 @@ import (
 
 // readType reads a specific tag type from the underlying buffer,
 // then returns the number of bytes read, a byte slice and an error.
-func (dec *Decoder[E]) readType(typ ExternalTagType) (n int, b []byte, err error) {
+func (dec *Decoder) readType(typ ExternalTagType) (n int, b []byte, err error) {
 	switch typ {
 	case EttSmallInteger:
 		n, b, err = dec.readSmallInteger()
@@ -25,6 +25,9 @@ func (dec *Decoder[E]) readType(typ ExternalTagType) (n int, b []byte, err error
 	case EttAtom, EttAtomUTF8:
 		n, b, err = dec.readAtomUTF8()
 
+	case EttString:
+		n, b, err = dec.readString()
+
 	case EttSmallBig:
 		n, b, err = dec.readSmallBig()
 	}
@@ -32,7 +35,17 @@ func (dec *Decoder[E]) readType(typ ExternalTagType) (n int, b []byte, err error
 	return
 }
 
-func (dec *Decoder[E]) readSmallBig() (int, []byte, error) {
+func (dec *Decoder) readString() (int, []byte, error) {
+	length := make([]byte, SizeStringLength)
+	n, err := dec.rd.Read(length)
+	if err != nil {
+		return n, length, ErrMalformedString
+	}
+
+	return n, length, nil
+}
+
+func (dec *Decoder) readSmallBig() (int, []byte, error) {
 	// 'n' is the amount of bytes that are used for the small big
 	n, err := dec.rd.ReadByte()
 	if err != nil {
@@ -66,7 +79,7 @@ func (dec *Decoder[E]) readSmallBig() (int, []byte, error) {
 	return size, num, nil
 }
 
-func (dec *Decoder[E]) readAtomUTF8() (int, []byte, error) {
+func (dec *Decoder) readAtomUTF8() (int, []byte, error) {
 	if dec.rd.Size() < 2 {
 		return 0, nil, ErrMalformedAtomUTF8
 	}
@@ -97,7 +110,7 @@ func (dec *Decoder[E]) readAtomUTF8() (int, []byte, error) {
 	return n, b, nil
 }
 
-func (dec *Decoder[E]) readSmallInteger() (int, []byte, error) {
+func (dec *Decoder) readSmallInteger() (int, []byte, error) {
 	sb, err := dec.rd.ReadByte()
 	if err != nil {
 		return 0, nil, ErrMalformedSmallInteger
@@ -106,7 +119,7 @@ func (dec *Decoder[E]) readSmallInteger() (int, []byte, error) {
 	return 1, []byte{sb}, nil
 }
 
-func (dec *Decoder[E]) readInteger() (int, []byte, error) {
+func (dec *Decoder) readInteger() (int, []byte, error) {
 	b := make([]byte, SizeInteger)
 	n, err := dec.rd.Read(b)
 	if err != nil {
@@ -116,7 +129,7 @@ func (dec *Decoder[E]) readInteger() (int, []byte, error) {
 	return n, b, nil
 }
 
-func (dec *Decoder[E]) readNewFloat() (int, []byte, error) {
+func (dec *Decoder) readNewFloat() (int, []byte, error) {
 	if dec.rd.Size() < 8 {
 		return 0, nil, ErrMalformedNewFloat
 	}
@@ -127,10 +140,14 @@ func (dec *Decoder[E]) readNewFloat() (int, []byte, error) {
 		return n, b, ErrMalformedNewFloat
 	}
 
+	if n < int(SizeNewFloat) || n > int(SizeNewFloat) {
+		return n, b, ErrMalformedNewFloat
+	}
+
 	return n, b, nil
 }
 
-func (dec *Decoder[E]) readFloat() (int, []byte, error) {
+func (dec *Decoder) readFloat() (int, []byte, error) {
 	if dec.rd.Size() < 31 {
 		return 0, nil, ErrMalformedFloat
 	}
@@ -144,10 +161,10 @@ func (dec *Decoder[E]) readFloat() (int, []byte, error) {
 	return n, b, nil
 }
 
-func (dec *Decoder[E]) parseType(flag ExternalTagType, data []byte) Term {
+func (dec *Decoder) parseType(flag ExternalTagType, data []byte) Term {
 	switch flag {
-	case EttAtom, EttAtomUTF8:
-		return dec.parseAtom(data)
+	case EttAtom, EttAtomUTF8, EttString:
+		return dec.parseString(data)
 
 	case EttSmallInteger:
 		return dec.parseSmallInteger(data)
@@ -168,32 +185,32 @@ func (dec *Decoder[E]) parseType(flag ExternalTagType, data []byte) Term {
 	return nil
 }
 
-func (dec *Decoder[E]) parseAtom(b []byte) string {
+func (dec *Decoder) parseString(b []byte) string {
 	return string(b)
 }
 
-func (dec *Decoder[E]) parseSmallInteger(b []byte) uint8 {
+func (dec *Decoder) parseSmallInteger(b []byte) uint8 {
 	return uint8(b[0])
 }
 
-func (dec *Decoder[E]) parseInteger(b []byte) int32 {
+func (dec *Decoder) parseInteger(b []byte) int32 {
 	return int32(binary.BigEndian.Uint32(b))
 }
 
-func (dec *Decoder[E]) parseNewFloat(b []byte) float64 {
+func (dec *Decoder) parseNewFloat(b []byte) float64 {
 	bits := binary.BigEndian.Uint64(b)
 	float := math.Float64frombits(bits)
 	return float
 }
 
-func (dec *Decoder[E]) parseFloat(b []byte) float64 {
+func (dec *Decoder) parseFloat(b []byte) float64 {
 	// todo: change to use string float IEEE format
 	bits := binary.LittleEndian.Uint64(b)
 	float := math.Float64frombits(bits)
 	return float
 }
 
-func (dec *Decoder[E]) parseSmallBig(b []byte) int64 {
+func (dec *Decoder) parseSmallBig(b []byte) int64 {
 	sign := b[0]
 	rest := bytes.Clone(b[1:])
 
