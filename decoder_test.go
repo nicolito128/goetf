@@ -1,6 +1,7 @@
 package goetf_test
 
 import (
+	"maps"
 	"slices"
 	"testing"
 
@@ -245,5 +246,38 @@ func TestDecodeList(t *testing.T) {
 	var want = []int32{1, 2, 3}
 	if slices.Compare(want, data) != 0 {
 		t.Errorf("want = %v, got = %v", want, data)
+	}
+}
+
+func TestDecodeMap(t *testing.T) {
+	{
+		data := map[string]string{}
+
+		b := []byte{131, 116, 0, 0, 0, 1, 119, 5, 104, 101, 108, 108, 111, 107, 0, 5, 119, 111, 114, 108, 100}
+		dec := goetf.NewDecoder(b)
+
+		if err := dec.Decode(data); err != nil {
+			t.Fatal(err)
+		}
+
+		want := map[string]string{"hello": "world"}
+		if !maps.Equal(data, want) {
+			t.Errorf("want = %v, got = %v", want, data)
+		}
+	}
+
+	{
+		data := map[string]uint8{}
+		b := []byte{131, 116, 0, 0, 0, 2, 119, 2, 111, 112, 97, 1, 119, 1, 100, 97, 2}
+
+		dec := goetf.NewDecoder(b)
+		if err := dec.Decode(data); err != nil {
+			t.Fatal(err)
+		}
+
+		want := map[string]uint8{"op": 1, "d": 2}
+		if !maps.Equal(data, want) {
+			t.Errorf("want = %v, got = %v", want, data)
+		}
 	}
 }

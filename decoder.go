@@ -3,6 +3,7 @@ package goetf
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"reflect"
 
@@ -14,6 +15,7 @@ type Decoder struct {
 	buf       []byte
 	rd        *bufio.Reader
 	atomCache *intern.Intern
+	ref       any
 	// todo: mu        sync.Mutex
 }
 
@@ -339,6 +341,52 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 
 		// read the 106 tail byte ([])
 		dec.rd.ReadByte()
+
+	case EttMap:
+		bsize := make([]byte, SizeMapArity)
+		n, err := dec.rd.Read(bsize)
+		if err != nil {
+			return ErrMalformedMap
+		}
+
+		if n < 4 {
+			return ErrMalformedMap
+		}
+
+		arity := int(dec.parseInteger(bsize))
+
+		vOf := reflect.ValueOf(v)
+		for i := 0; i < arity; i++ {
+			// Key
+			bflag, err := dec.rd.ReadByte()
+			if err != nil {
+				return ErrMalformedMap
+			}
+			keyFlag := ExternalTagType(bflag)
+
+			_, b, err := dec.readType(keyFlag)
+			if err != nil {
+				return ErrMalformedMap
+			}
+			key := dec.parseType(keyFlag, b)
+
+			// Value
+			bflag, err = dec.rd.ReadByte()
+			if err != nil {
+				return ErrMalformedMap
+			}
+			valueFlag := ExternalTagType(bflag)
+
+			_, b, err = dec.readType(valueFlag)
+			if err != nil {
+				return ErrMalformedMap
+			}
+			value := dec.parseType(valueFlag, b)
+
+			// Set key and value
+			fmt.Println(key, value)
+			vOf.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
+		}
 	}
 
 	return nil

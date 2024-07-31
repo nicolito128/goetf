@@ -88,6 +88,7 @@ var tagNames = map[ExternalTagType]string{
 	EttSmallBig:      "SMALL_BIG_EXT",
 	EttSmallInteger:  "SMALL_INTEGER_EXT",
 	EttSmallTuple:    "SMALL_TUPLE_EXT",
+	EttMap:           "MAP_EXT",
 	EttString:        "STRING_EXT",
 	EttV4Port:        "V4_PORT_EXT",
 	EttLocal:         "LOCAL_EXT",

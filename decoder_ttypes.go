@@ -299,6 +299,9 @@ func (dec *Decoder) parseType(flag ExternalTagType, data []byte) Term {
 	case EttAtom, EttAtomUTF8, EttString:
 		return dec.parseString(data)
 
+	case EttSmallAtom, EttSmallAtomUTF8:
+		return dec.parseString(data)
+
 	case EttSmallInteger:
 		return dec.parseSmallInteger(data)
 
