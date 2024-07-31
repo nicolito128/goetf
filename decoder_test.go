@@ -168,6 +168,22 @@ func TestDecodeBinary(t *testing.T) {
 	}
 }
 
+func TestDecodeSmallAtom(t *testing.T) {
+	var data string
+
+	b := []byte{131, 119, 3, 35, 55, 33}
+	dec := goetf.NewDecoder(b)
+
+	if err := dec.Decode(&data); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "#7!"
+	if want != data {
+		t.Errorf("want = %v, got = %v", want, data)
+	}
+}
+
 func TestDecodeSmallTuple(t *testing.T) {
 	data := make([]uint8, 2)
 

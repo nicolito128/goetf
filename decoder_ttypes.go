@@ -24,6 +24,9 @@ func (dec *Decoder) readType(typ ExternalTagType) (n int, b []byte, err error) {
 	case EttAtom, EttAtomUTF8:
 		n, b, err = dec.readAtomUTF8()
 
+	case EttSmallAtom, EttSmallAtomUTF8:
+		n, b, err = dec.readSmallAtomUTF8()
+
 	case EttString:
 		n, b, err = dec.readString()
 
@@ -38,6 +41,26 @@ func (dec *Decoder) readType(typ ExternalTagType) (n int, b []byte, err error) {
 	}
 
 	return
+}
+
+func (dec *Decoder) readSmallAtomUTF8() (int, []byte, error) {
+	sb, err := dec.rd.ReadByte()
+	if err != nil {
+		return 1, nil, ErrMalformedSmallAtomUTF8
+	}
+
+	length := int(sb)
+	if length == 0 || dec.rd.Size() < length {
+		return 1, nil, ErrMalformedSmallAtomUTF8
+	}
+
+	b := make([]byte, length)
+	n, err := dec.rd.Read(b)
+	if err != nil {
+		return n, b, ErrMalformedSmallAtomUTF8
+	}
+
+	return n, b, nil
 }
 
 func (dec *Decoder) readLargeBig() (int, []byte, error) {

@@ -11,6 +11,7 @@ import (
 
 // Decoder allows embedding ETF byte slices into valid Go code.
 type Decoder struct {
+	buf       []byte
 	rd        *bufio.Reader
 	atomCache *intern.Intern
 	// todo: mu        sync.Mutex
@@ -18,6 +19,7 @@ type Decoder struct {
 
 func NewDecoder(b []byte) *Decoder {
 	return &Decoder{
+		buf:       b,
 		rd:        bufio.NewReaderSize(bytes.NewReader(b), len(b)),
 		atomCache: intern.New(2048),
 	}
@@ -39,6 +41,7 @@ func (dec *Decoder) DecodePacket(packet []byte, v any) error {
 	}
 
 	dec.rd.Reset(bytes.NewReader(packet))
+	dec.buf = packet
 	return dec.decode(v)
 }
 
@@ -93,7 +96,22 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			return ErrDecodeType
 		}
 
-		(*ptr) = dec.parseString(b)
+		s := dec.parseString(b)
+		(*ptr) = dec.atomCache.Deduplicate(s)
+
+	case EttSmallAtom, EttSmallAtomUTF8:
+		_, b, err := dec.readSmallAtomUTF8()
+		if err != nil {
+			return err
+		}
+
+		ptr, ok := (v).(*string)
+		if !ok {
+			return ErrDecodeType
+		}
+
+		s := dec.parseString(b)
+		(*ptr) = dec.atomCache.Deduplicate(s)
 
 	case EttString:
 		_, b, err := dec.readString()
