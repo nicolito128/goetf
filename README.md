@@ -8,8 +8,6 @@ Go encoding/decoding module for ETF (External Term Format).
 ## Why GoETF?
 The external term format is mainly used in the distribution mechanism of the Erlang programming language and it's sometimes necessary to handle the encoding and decoding of this particular binary format.
 
-Also, GoETF seeks to take advantage of modern Go features such as generics to offer greater flexibility than other modules.
-
 ## References
 
 * [Erlang Runtime System Application (ERTS) - External Term Format](https://www.erlang.org/doc/apps/erts/erl_ext_dist.html)
