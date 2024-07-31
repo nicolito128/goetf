@@ -20,6 +20,20 @@ func TestDecodeSmallInteger(t *testing.T) {
 	if want != data {
 		t.Errorf("want = %v, got = %v", want, data)
 	}
+
+	// decoding using plain uint
+	var data2 uint
+
+	b = []byte{131, 97, 2}
+	if err := dec.DecodePacket(b, &data2); err != nil {
+		t.Fatal(err)
+	}
+
+	want2 := uint(2)
+	if want2 != data2 {
+		t.Errorf("want = %v, got = %v", want, data)
+	}
+
 }
 
 func TestDecodeNewFloat(t *testing.T) {
@@ -38,7 +52,6 @@ func TestDecodeNewFloat(t *testing.T) {
 	}
 
 	// negative value parsing
-
 	b = []byte{131, 70, 192, 4, 184, 81, 235, 133, 30, 184}
 
 	if err := dec.DecodePacket(b, &data); err != nil {
@@ -75,7 +88,19 @@ func TestDecodeAtomUTF8(t *testing.T) {
 }
 
 func TestDecodeString(t *testing.T) {
+	var data string
 
+	b := []byte{131, 107, 0, 12, 104, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100}
+	dec := NewDecoder(bytes.NewReader(b))
+
+	if err := dec.Decode(&data); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "hello, world"
+	if want != data {
+		t.Errorf("want = %v, got = %v", want, data)
+	}
 }
 
 func TestDecodeInteger(t *testing.T) {

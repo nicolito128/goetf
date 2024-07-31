@@ -35,16 +35,6 @@ func (dec *Decoder) readType(typ ExternalTagType) (n int, b []byte, err error) {
 	return
 }
 
-func (dec *Decoder) readString() (int, []byte, error) {
-	length := make([]byte, SizeStringLength)
-	n, err := dec.rd.Read(length)
-	if err != nil {
-		return n, length, ErrMalformedString
-	}
-
-	return n, length, nil
-}
-
 func (dec *Decoder) readSmallBig() (int, []byte, error) {
 	// 'n' is the amount of bytes that are used for the small big
 	n, err := dec.rd.ReadByte()
@@ -108,6 +98,31 @@ func (dec *Decoder) readAtomUTF8() (int, []byte, error) {
 	}
 
 	return n, b, nil
+}
+
+func (dec *Decoder) readString() (int, []byte, error) {
+	if dec.rd.Size() < 2 {
+		return 0, nil, ErrMalformedString
+	}
+
+	blength := make([]byte, 2)
+	n, err := dec.rd.Read(blength)
+	if err != nil {
+		return n, blength, ErrMalformedString
+	}
+
+	length := int(binary.BigEndian.Uint16(blength))
+	bstr := make([]byte, length)
+	n, err = dec.rd.Read(bstr)
+	if err != nil {
+		return n, bstr, ErrMalformedString
+	}
+
+	if n < length {
+		return n, bstr, ErrMalformedString
+	}
+
+	return n, bstr, nil
 }
 
 func (dec *Decoder) readSmallInteger() (int, []byte, error) {

@@ -38,7 +38,7 @@ func (dec *Decoder) DecodePacket(packet []byte, v any) error {
 		return ErrNilDecodeValue
 	}
 
-	dec.rd = bufio.NewReader(bytes.NewReader(packet))
+	dec.rd.Reset(bytes.NewReader(packet))
 	return dec.decode(v)
 }
 
