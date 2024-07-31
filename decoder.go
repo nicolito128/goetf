@@ -3,6 +3,7 @@ package goetf
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"reflect"
 
@@ -16,9 +17,9 @@ type Decoder struct {
 	// todo: mu        sync.Mutex
 }
 
-func NewDecoder(rd io.Reader) *Decoder {
+func NewDecoder(b []byte) *Decoder {
 	return &Decoder{
-		rd:        bufio.NewReader(rd),
+		rd:        bufio.NewReaderSize(bytes.NewReader(b), len(b)),
 		atomCache: intern.New(2048),
 	}
 }
@@ -60,13 +61,9 @@ func (dec *Decoder) decode(v any) error {
 	}
 
 	for {
-		if dec.rd.Size() == 0 {
-			return ErrMalformed
-		}
-
 		b, err = dec.rd.ReadByte()
 		if err != nil && err != io.EOF {
-			return ErrMalformed
+			return err
 		}
 
 		if err == io.EOF {
@@ -84,8 +81,8 @@ func (dec *Decoder) decode(v any) error {
 	}
 }
 
-func (dec *Decoder) decodeStatic(b ExternalTagType, v any) error {
-	switch b {
+func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
+	switch tag {
 	case EttAtom, EttAtomUTF8:
 		_, b, err := dec.readAtomUTF8()
 		if err != nil {
@@ -190,12 +187,30 @@ func (dec *Decoder) decodeStatic(b ExternalTagType, v any) error {
 			return err
 		}
 
+		fmt.Println("here:", b)
+
 		switch v := v.(type) {
 		case *int64:
+			fmt.Printf("%T, (*v) = %v\n", *v, *v)
 			(*v) = dec.parseSmallBig(b)
+			fmt.Println(*v)
 
 		case *int:
 			(*v) = int(dec.parseInteger(b))
+
+		default:
+			return ErrMalformedSmallBig
+		}
+
+	case EttBinary:
+		_, b, err := dec.readBinary()
+		if err != nil {
+			return err
+		}
+
+		switch v := v.(type) {
+		case *[]byte:
+			(*v) = b
 
 		default:
 			return ErrMalformed
