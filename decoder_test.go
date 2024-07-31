@@ -168,3 +168,19 @@ func TestDecodeLargeTuple(t *testing.T) {
 		t.Errorf("want = %v, got = %v", want, data)
 	}
 }
+
+func TestDecodeList(t *testing.T) {
+	data := []int32{0, 0, 0}
+
+	b := []byte{131, 108, 0, 0, 0, 3, 98, 0, 0, 0, 1, 98, 0, 0, 0, 2, 98, 0, 0, 0, 3, 106}
+	dec := goetf.NewDecoder(bytes.NewReader(b))
+
+	if err := dec.Decode(data); err != nil {
+		t.Fatal(err)
+	}
+
+	var want = []int32{1, 2, 3}
+	if slices.Compare(want, data) != 0 {
+		t.Errorf("want = %v, got = %v", want, data)
+	}
+}

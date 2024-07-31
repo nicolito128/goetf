@@ -126,6 +126,9 @@ func (dec *Decoder) decodeStatic(b ExternalTagType, v any) error {
 		case *uint:
 			(*v) = uint(dec.parseSmallInteger(b))
 
+		case *int:
+			(*v) = int(dec.parseSmallInteger(b))
+
 		default:
 			return ErrMalformed
 		}
@@ -248,6 +251,35 @@ func (dec *Decoder) decodeStatic(b ExternalTagType, v any) error {
 			item := dec.parseType(flag, b)
 			vOf.Index(i).Set(reflect.ValueOf(item))
 		}
+
+	case EttList:
+		b := make([]byte, SizeListLength)
+		_, err := dec.rd.Read(b)
+		if err != nil {
+			return ErrMalformedLargeTuple
+		}
+
+		length := int(dec.parseInteger(b))
+
+		vOf := reflect.ValueOf(v)
+		for i := 0; i < length; i++ {
+			bflag, err := dec.rd.ReadByte()
+			if err != nil {
+				return ErrMalformedLargeTuple
+			}
+			flag := ExternalTagType(bflag)
+
+			_, b, err := dec.readType(flag)
+			if err != nil {
+				return ErrMalformedLargeTuple
+			}
+
+			item := dec.parseType(flag, b)
+			vOf.Index(i).Set(reflect.ValueOf(item))
+		}
+
+		// read the 106 tail byte ([])
+		dec.rd.ReadByte()
 	}
 
 	return nil
