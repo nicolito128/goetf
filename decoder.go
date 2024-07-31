@@ -196,7 +196,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			fmt.Println(*v)
 
 		case *int:
-			(*v) = int(dec.parseInteger(b))
+			(*v) = int(dec.parseSmallBig(b))
 
 		default:
 			return ErrDecodeType
