@@ -3,7 +3,6 @@ package goetf
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"reflect"
 
@@ -189,12 +188,27 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 
 		switch v := v.(type) {
 		case *int64:
-			fmt.Printf("%T, (*v) = %v\n", *v, *v)
 			(*v) = dec.parseSmallBig(b)
-			fmt.Println(*v)
 
 		case *int:
 			(*v) = int(dec.parseSmallBig(b))
+
+		default:
+			return ErrDecodeType
+		}
+
+	case EttLargeBig:
+		_, b, err := dec.readLargeBig()
+		if err != nil {
+			return err
+		}
+
+		switch v := v.(type) {
+		case *int64:
+			(*v) = dec.parseLargeBig(b)
+
+		case *int:
+			(*v) = int(dec.parseLargeBig(b))
 
 		default:
 			return ErrDecodeType

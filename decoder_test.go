@@ -136,6 +136,22 @@ func TestDecodeSmallBig(t *testing.T) {
 	}
 }
 
+func TestDecodeLargeBig(t *testing.T) {
+	var data int64
+
+	b := []byte{131, 111, 0, 0, 0, 6, 0, 100, 101, 97, 33, 75, 128}
+	dec := goetf.NewDecoder(b)
+
+	if err := dec.Decode(&data); err != nil {
+		t.Fatal(err)
+	}
+
+	var want int64 = 141060170933604
+	if want != data {
+		t.Errorf("want = %v, got = %v", want, data)
+	}
+}
+
 func TestDecodeBinary(t *testing.T) {
 	data := make([]byte, 0)
 

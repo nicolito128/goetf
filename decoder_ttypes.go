@@ -1,7 +1,6 @@
 package goetf
 
 import (
-	"bytes"
 	"encoding/binary"
 	"math"
 )
@@ -33,9 +32,46 @@ func (dec *Decoder) readType(typ ExternalTagType) (n int, b []byte, err error) {
 
 	case EttBinary:
 		n, b, err = dec.readBinary()
+
+	case EttLargeBig:
+		n, b, err = dec.readLargeBig()
 	}
 
 	return
+}
+
+func (dec *Decoder) readLargeBig() (int, []byte, error) {
+	bn := make([]byte, SizeLargeBigN)
+	n, err := dec.rd.Read(bn)
+	if err != nil {
+		return n, bn, ErrMalformedLargeBig
+	}
+
+	if n < int(SizeLargeBigN) || dec.rd.Size() < (n+1) {
+		return n, bn, ErrMalformedLargeBig
+	}
+
+	size := int(dec.parseInteger(bn))
+
+	// fill with 0 to allow parsing
+	if size < 8 {
+		size += 8 - size
+	}
+
+	sign, err := dec.rd.ReadByte()
+	if err != nil {
+		return n, nil, ErrMalformedLargeBig
+	}
+
+	num := make([]byte, size+1) // size+1 to store internaly the sign
+	num[0] = sign               // positive or negative
+
+	_, err = dec.rd.Read(num[1:])
+	if err != nil {
+		return 0, num, ErrMalformedSmallBig
+	}
+
+	return n, num, nil
 }
 
 func (dec *Decoder) readSmallBig() (int, []byte, error) {
@@ -224,6 +260,9 @@ func (dec *Decoder) parseType(flag ExternalTagType, data []byte) Term {
 
 	case EttSmallBig:
 		return dec.parseSmallBig(data)
+
+	case EttLargeBig:
+		return dec.parseLargeBig(data)
 	}
 
 	return nil
@@ -256,7 +295,7 @@ func (dec *Decoder) parseFloat(b []byte) float64 {
 
 func (dec *Decoder) parseSmallBig(b []byte) int64 {
 	sign := b[0]
-	rest := bytes.Clone(b[1:])
+	rest := b[1:]
 
 	bits := binary.LittleEndian.Uint64(rest)
 	smallBig := int64(bits)
@@ -266,4 +305,18 @@ func (dec *Decoder) parseSmallBig(b []byte) int64 {
 	}
 
 	return smallBig
+}
+
+func (dec *Decoder) parseLargeBig(b []byte) int64 {
+	sign := b[0]
+	rest := b[1:]
+
+	bits := binary.LittleEndian.Uint64(rest)
+	largeBig := int64(bits)
+
+	if sign == 1 {
+		largeBig *= -1
+	}
+
+	return largeBig
 }
