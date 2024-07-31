@@ -38,9 +38,39 @@ func (dec *Decoder) readType(typ ExternalTagType) (n int, b []byte, err error) {
 
 	case EttLargeBig:
 		n, b, err = dec.readLargeBig()
+
+	case EttBitBinary:
+		n, b, err = dec.readBitBinary()
 	}
 
 	return
+}
+
+func (dec *Decoder) readBitBinary() (int, []byte, error) {
+	blength := make([]byte, SizeBitBinaryLen)
+	n, err := dec.rd.Read(blength)
+	if err != nil {
+		return n, blength, ErrMalformedBitBinary
+	}
+
+	if n < int(SizeBitBinaryLen) || dec.rd.Size() < (n+1) {
+		return n, blength, ErrMalformedBitBinary
+	}
+
+	length := int(binary.BigEndian.Uint32(blength))
+
+	_, err = dec.rd.ReadByte()
+	if err != nil {
+		return n + 1, blength, ErrMalformedBitBinary
+	}
+
+	b := make([]byte, length)
+	n, err = dec.rd.Read(b)
+	if err != nil {
+		return n, b, ErrMalformedBitBinary
+	}
+
+	return n, b, nil
 }
 
 func (dec *Decoder) readSmallAtomUTF8() (int, []byte, error) {
@@ -286,9 +316,19 @@ func (dec *Decoder) parseType(flag ExternalTagType, data []byte) Term {
 
 	case EttLargeBig:
 		return dec.parseLargeBig(data)
+
+	case EttBinary:
+		return dec.parseBinary(data)
+
+	case EttBitBinary:
+		return dec.parseBinary(data)
 	}
 
 	return nil
+}
+
+func (dec *Decoder) parseBinary(b []byte) []byte {
+	return b
 }
 
 func (dec *Decoder) parseString(b []byte) string {

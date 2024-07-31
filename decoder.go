@@ -246,6 +246,20 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			return ErrDecodeType
 		}
 
+	case EttBitBinary:
+		_, b, err := dec.readBitBinary()
+		if err != nil {
+			return err
+		}
+
+		switch v := v.(type) {
+		case *[]byte:
+			(*v) = b
+
+		default:
+			return ErrDecodeType
+		}
+
 	case EttSmallTuple:
 		sb, err := dec.rd.ReadByte()
 		if err != nil {
