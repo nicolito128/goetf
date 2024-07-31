@@ -187,8 +187,6 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			return err
 		}
 
-		fmt.Println("here:", b)
-
 		switch v := v.(type) {
 		case *int64:
 			fmt.Printf("%T, (*v) = %v\n", *v, *v)
