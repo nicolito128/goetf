@@ -295,8 +295,8 @@ func (dec *Decoder) readFloat() (int, []byte, error) {
 	return n, b, nil
 }
 
-func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) error {
-	switch flag {
+func (dec *Decoder) decodeVariadicType(src reflect.Value, ettflag ExternalTagType) error {
+	switch ettflag {
 	case EttSmallTuple:
 		sb, err := dec.rd.ReadByte()
 		if err != nil {
@@ -317,15 +317,26 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) 
 				return ErrMalformedSmallTuple
 			}
 
-			elem := src.Index(i)
-			switch elem.Type().Kind() {
+			switch src.Type().Kind() {
 			case reflect.Slice, reflect.Array:
-				if err := dec.decodeVariadicType(elem, EttSmallTuple); err != nil {
+				if src.Len() > 0 {
+					elem := src.Index(i)
+					switch elem.Type().Kind() {
+					case reflect.Slice, reflect.Array, reflect.Map:
+						if err := dec.decodeVariadicType(elem, flag); err != nil {
+							return err
+						}
+
+					default:
+						item := dec.parseType(src, flag, b)
+						elem.Set(reflect.ValueOf(item))
+					}
+				}
+
+			case reflect.Map:
+				if err := dec.decodeVariadicType(src, flag); err != nil {
 					return err
 				}
-			default:
-				item := dec.parseType(src, flag, b)
-				elem.Set(reflect.ValueOf(item))
 			}
 		}
 
@@ -343,20 +354,33 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) 
 			if err != nil {
 				return ErrMalformedLargeTuple
 			}
-			flag := ExternalTagType(bflag)
+			fg := ExternalTagType(bflag)
 
-			_, b, err := dec.readType(flag)
+			_, b, err := dec.readType(fg)
 			if err != nil {
 				return ErrMalformedLargeTuple
 			}
 
-			elem := src.Index(i)
-			switch elem.Type().Kind() {
-			case reflect.Slice, reflect.Array, reflect.Map:
-				dec.decodeVariadicType(elem, EttLargeTuple)
-			default:
-				item := dec.parseType(src, flag, b)
-				elem.Set(reflect.ValueOf(item))
+			switch src.Type().Kind() {
+			case reflect.Slice, reflect.Array:
+				if src.Len() > 0 {
+					elem := src.Index(i)
+					switch elem.Type().Kind() {
+					case reflect.Slice, reflect.Array, reflect.Map:
+						if err := dec.decodeVariadicType(elem, fg); err != nil {
+							return err
+						}
+
+					default:
+						item := dec.parseType(src, fg, b)
+						elem.Set(reflect.ValueOf(item))
+					}
+				}
+
+			case reflect.Map:
+				if err := dec.decodeVariadicType(src, fg); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -383,16 +407,23 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) 
 
 			switch src.Type().Kind() {
 			case reflect.Slice, reflect.Array:
-				elem := src.Index(i)
-				switch elem.Type().Kind() {
-				case reflect.Slice, reflect.Array:
-					if err := dec.decodeVariadicType(elem, EttList); err != nil {
-						return err
-					}
+				if src.Len() > 0 {
+					elem := src.Index(i)
+					switch elem.Type().Kind() {
+					case reflect.Slice, reflect.Array, reflect.Map:
+						if err := dec.decodeVariadicType(elem, flag); err != nil {
+							return err
+						}
 
-				default:
-					item := dec.parseType(src, flag, b)
-					elem.Set(reflect.ValueOf(item))
+					default:
+						item := dec.parseType(src, flag, b)
+						elem.Set(reflect.ValueOf(item))
+					}
+				}
+
+			case reflect.Map:
+				if err := dec.decodeVariadicType(src, flag); err != nil {
+					return err
 				}
 			}
 		}
@@ -524,115 +555,200 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 			return data
 		}
 
+	case EttSmallTuple:
+		return dec.parseSmallTuple(src)
+
+	case EttLargeTuple:
+		return dec.parseLargeTuple(src)
+
 	case EttList:
-		b := make([]byte, SizeListLength)
-		_, err := dec.rd.Read(b)
+		return dec.parseList(src)
+
+	case EttMap:
+		return dec.parseMap(src)
+	}
+
+	return nil
+}
+
+func (dec *Decoder) parseSmallTuple(src reflect.Value) any {
+	sb, err := dec.rd.ReadByte()
+	if err != nil {
+		return err
+	}
+
+	arity := int(sb)
+
+	slice := reflect.MakeSlice(reflect.TypeOf([]any{}), 0, arity)
+
+	for i := 0; i < arity; i++ {
+		bflag, err := dec.rd.ReadByte()
+		if err != nil {
+			panic(ErrMalformedSmallTuple)
+		}
+		flag := ExternalTagType(bflag)
+
+		_, b, err := dec.readType(flag)
+		if err != nil {
+			panic(ErrMalformedSmallTuple)
+		}
+
+		item := dec.parseType(src, flag, b)
+		switch v := item.(type) {
+		case reflect.Value:
+			slice = reflect.Append(slice, v)
+
+		default:
+			if item != nil {
+				itemOf := reflect.ValueOf(item)
+				slice = reflect.Append(slice, itemOf)
+			}
+		}
+	}
+
+	return slice
+}
+
+func (dec *Decoder) parseLargeTuple(src reflect.Value) any {
+	b := make([]byte, SizeLargeTupleArity)
+	_, err := dec.rd.Read(b)
+	if err != nil {
+		panic(ErrMalformedLargeTuple)
+	}
+
+	arity := int(dec.parseInteger(b))
+
+	slice := reflect.MakeSlice(reflect.TypeOf([]any{}), 0, arity)
+	for i := 0; i < arity; i++ {
+		bflag, err := dec.rd.ReadByte()
+		if err != nil {
+			panic(ErrMalformedLargeTuple)
+		}
+		fg := ExternalTagType(bflag)
+
+		_, b, err := dec.readType(fg)
+		if err != nil {
+			panic(ErrMalformedLargeTuple)
+		}
+
+		item := dec.parseType(src, fg, b)
+		switch v := item.(type) {
+		case reflect.Value:
+			slice = reflect.Append(slice, v)
+
+		default:
+			if item != nil {
+				itemOf := reflect.ValueOf(item)
+				slice = reflect.Append(slice, itemOf)
+			}
+		}
+	}
+
+	return slice
+}
+
+func (dec *Decoder) parseMap(src reflect.Value) any {
+	var newMap reflect.Value
+
+	switch src.Type().Kind() {
+	case reflect.Map:
+		bsize := make([]byte, SizeMapArity)
+		n, err := dec.rd.Read(bsize)
+		if err != nil {
+			panic(ErrMalformedMap)
+		}
+
+		if n < 4 {
+			panic(ErrMalformedMap)
+		}
+
+		arity := int(dec.parseInteger(bsize))
+
+		var newMapType reflect.Type
+		for i := 0; i < arity; i++ {
+			// Key
+			bflag, err := dec.rd.ReadByte()
+			if err != nil {
+				panic(ErrMalformedMap)
+			}
+			keyFlag := ExternalTagType(bflag)
+
+			_, b, err := dec.readType(keyFlag)
+			if err != nil {
+				panic(ErrMalformedMap)
+			}
+			key := dec.parseType(src, keyFlag, b)
+
+			// Value
+			bflag, err = dec.rd.ReadByte()
+			if err != nil {
+				panic(ErrMalformedMap)
+			}
+			valueFlag := ExternalTagType(bflag)
+
+			_, b, err = dec.readType(valueFlag)
+			if err != nil {
+				panic(ErrMalformedMap)
+			}
+			value := dec.parseType(src, valueFlag, b)
+
+			keyOf := reflect.ValueOf(key)
+			switch v := value.(type) {
+			case reflect.Value:
+				src.SetMapIndex(keyOf, v)
+			default:
+				if v != nil {
+					newMapType = reflect.MapOf(keyOf.Type(), reflect.TypeOf(v))
+					newMap = reflect.MakeMap(newMapType)
+				} else {
+					newMap = reflect.MakeMap(reflect.TypeOf(map[any]any{}))
+				}
+
+				newMap.SetMapIndex(keyOf, reflect.ValueOf(value))
+			}
+		}
+	}
+	return newMap
+}
+
+func (dec *Decoder) parseList(src reflect.Value) any {
+	b := make([]byte, SizeListLength)
+	_, err := dec.rd.Read(b)
+	if err != nil {
+		return ErrMalformedList
+	}
+
+	length := int(dec.parseInteger(b))
+
+	slice := reflect.MakeSlice(reflect.TypeOf([]any{}), length, length)
+	for i := 0; i < length; i++ {
+		bflag, err := dec.rd.ReadByte()
+		if err != nil {
+			return ErrMalformedList
+		}
+		flag := ExternalTagType(bflag)
+
+		_, b, err := dec.readType(flag)
 		if err != nil {
 			return ErrMalformedList
 		}
 
-		length := int(dec.parseInteger(b))
+		item := dec.parseType(src, flag, b)
+		switch v := item.(type) {
+		case reflect.Value:
+			slice = reflect.Append(slice, v)
 
-		slice := reflect.MakeSlice(reflect.TypeOf([]any{}), 0, length)
-		for i := 0; i < length; i++ {
-			bflag, err := dec.rd.ReadByte()
-			if err != nil {
-				return ErrMalformedList
+		default:
+			if item != nil {
+				itemOf := reflect.ValueOf(item)
+				slice = reflect.Append(slice, itemOf)
 			}
-			flag := ExternalTagType(bflag)
-
-			_, b, err := dec.readType(flag)
-			if err != nil {
-				return ErrMalformedList
-			}
-
-			item := dec.parseType(src, flag, b)
-			switch v := item.(type) {
-			case reflect.Value:
-				slice = reflect.Append(slice, v)
-
-			default:
-				if item != nil {
-					itemOf := reflect.ValueOf(item)
-					slice = reflect.Append(slice, itemOf)
-				}
-			}
-
-		}
-		// read the 106 tail byte ([])
-		dec.rd.ReadByte()
-
-		if slice.Len() == 1 {
-			return slice.Index(0)
-		}
-
-		return slice
-
-	case EttMap:
-		switch src.Type().Kind() {
-		case reflect.Map:
-			bsize := make([]byte, SizeMapArity)
-			n, err := dec.rd.Read(bsize)
-			if err != nil {
-				return ErrMalformedMap
-			}
-
-			if n < 4 {
-				return ErrMalformedMap
-			}
-
-			arity := int(dec.parseInteger(bsize))
-
-			var newMap reflect.Value
-			var newMapType reflect.Type
-			for i := 0; i < arity; i++ {
-				// Key
-				bflag, err := dec.rd.ReadByte()
-				if err != nil {
-					return ErrMalformedMap
-				}
-				keyFlag := ExternalTagType(bflag)
-
-				_, b, err := dec.readType(keyFlag)
-				if err != nil {
-					return ErrMalformedMap
-				}
-				key := dec.parseType(src, keyFlag, b)
-
-				// Value
-				bflag, err = dec.rd.ReadByte()
-				if err != nil {
-					return ErrMalformedMap
-				}
-				valueFlag := ExternalTagType(bflag)
-
-				_, b, err = dec.readType(valueFlag)
-				if err != nil {
-					return ErrMalformedMap
-				}
-				value := dec.parseType(src, valueFlag, b)
-
-				keyOf := reflect.ValueOf(key)
-				switch v := value.(type) {
-				case reflect.Value:
-					src.SetMapIndex(keyOf, v)
-				default:
-					if v != nil {
-						newMapType = reflect.MapOf(keyOf.Type(), reflect.TypeOf(v))
-						newMap = reflect.MakeMap(newMapType)
-					} else {
-						newMap = reflect.MakeMap(reflect.TypeOf(map[any]any{}))
-					}
-
-					newMap.SetMapIndex(keyOf, reflect.ValueOf(value))
-				}
-			}
-
-			return newMap
 		}
 	}
+	// read the 106 tail byte ([])
+	dec.rd.ReadByte()
 
-	return nil
+	return slice
 }
 
 func (dec *Decoder) parseString(b []byte) string {
