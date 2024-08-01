@@ -217,6 +217,45 @@ func TestDecodeSmallTuple(t *testing.T) {
 	}
 }
 
+func TestTupleRecursive(t *testing.T) {
+	{
+		data := [][]uint8{{0}, {0}, {0}}
+
+		b := []byte{131, 104, 3, 104, 1, 97, 0, 104, 1, 97, 2, 104, 1, 97, 4}
+		dec := goetf.NewDecoder(b)
+
+		if err := dec.Decode(data); err != nil {
+			t.Fatal(err)
+		}
+
+		want := [][]uint8{{0}, {2}, {4}}
+		for i := range want {
+			if slices.Compare(want[i], data[i]) != 0 {
+				t.Errorf("want = %v, got = %v", want, data)
+			}
+		}
+	}
+	{
+		data := [][][]uint8{{{0}, {1}}}
+
+		b := []byte{131, 104, 1, 104, 2, 104, 1, 97, 0, 104, 1, 97, 1}
+		dec := goetf.NewDecoder(b)
+
+		if err := dec.Decode(data); err != nil {
+			t.Fatal(err)
+		}
+
+		want := [][][]uint8{{{0}, {1}}}
+		for i := range want {
+			for j := range want[i] {
+				if slices.Compare(want[i][j], data[i][j]) != 0 {
+					t.Errorf("want = %v, got = %v", want, data)
+				}
+			}
+		}
+	}
+}
+
 func TestDecodeLargeTuple(t *testing.T) {
 	data := make([]uint8, 2)
 
@@ -278,6 +317,23 @@ func TestDecodeMap(t *testing.T) {
 		want := map[string]uint8{"op": 1, "d": 2}
 		if !maps.Equal(data, want) {
 			t.Errorf("want = %v, got = %v", want, data)
+		}
+	}
+
+	{
+		data := map[string]map[string]uint8{}
+		b := []byte{131, 116, 0, 0, 0, 1, 119, 1, 98, 116, 0, 0, 0, 1, 119, 1, 97, 97, 1}
+
+		dec := goetf.NewDecoder(b)
+		if err := dec.Decode(data); err != nil {
+			t.Fatal(err)
+		}
+
+		want := map[string]map[string]uint8{"b": {"a": 1}}
+		for k := range want {
+			if !maps.Equal(want[k], data[k]) {
+				t.Errorf("want = %v, got = %v", want, data)
+			}
 		}
 	}
 }
