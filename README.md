@@ -3,10 +3,10 @@
 > [!WARNING]
 > The library is not finished so its actual use is not recommended yet.
 
-Go encoding/decoding module for ETF (External Term Format).
+Go encoding module for ETF (External Term Format) binaries.
 
 ## Why GoETF?
-The external term format is mainly used in the distribution mechanism of the Erlang programming language and it's sometimes necessary to handle the encoding and decoding of this particular binary format.
+The external term format is primarily used in Erlang's distribution mechanism. Sometimes, it's necessary to work with the encoding and decoding of this specific binary format, which is used for communication between different APIs.
 
 ## References
 
