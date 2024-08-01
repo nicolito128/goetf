@@ -627,10 +627,6 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 	return nil
 }
 
-func (dec *Decoder) parseBinary(b []byte) []byte {
-	return b
-}
-
 func (dec *Decoder) parseString(b []byte) string {
 	return string(b)
 }
