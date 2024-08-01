@@ -1,0 +1,9 @@
+# Environment
+.env
+!.*.example
+
+# Privates
+*-private.*
+
+# debug
+.vscode
