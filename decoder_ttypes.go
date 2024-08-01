@@ -404,27 +404,12 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, ettflag ExternalTagTyp
 			if err != nil {
 				return ErrMalformedList
 			}
+			value := dec.parseType(src, flag, b)
 
-			switch src.Type().Kind() {
-			case reflect.Slice, reflect.Array:
-				if src.Len() > 0 {
-					elem := src.Index(i)
-					switch elem.Type().Kind() {
-					case reflect.Slice, reflect.Array, reflect.Map:
-						if err := dec.decodeVariadicType(elem, flag); err != nil {
-							return err
-						}
-
-					default:
-						item := dec.parseType(src, flag, b)
-						elem.Set(reflect.ValueOf(item))
-					}
-				}
-
-			case reflect.Map:
-				if err := dec.decodeVariadicType(src, flag); err != nil {
-					return err
-				}
+			switch src.Elem().Type().Kind() {
+			case reflect.Array, reflect.Slice:
+				elem := src.Elem().Index(i)
+				elem.Set(valueOf(value))
 			}
 		}
 		// read the 106 tail byte ([])
@@ -470,12 +455,7 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, ettflag ExternalTagTyp
 			}
 			value := dec.parseType(src, valueFlag, b)
 
-			switch v := value.(type) {
-			case reflect.Value:
-				src.SetMapIndex(reflect.ValueOf(key), v)
-			default:
-				src.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
-			}
+			src.SetMapIndex(valueOf(key), valueOf(value))
 		}
 	}
 
@@ -494,7 +474,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		return dec.parseString(data)
 
 	case EttSmallInteger:
-		kind := src.Type().Kind()
+		kind := deepTypeOf(src.Type()).Kind()
 
 		if kind == reflect.Int {
 			return int(dec.parseSmallInteger(data))
@@ -579,7 +559,8 @@ func (dec *Decoder) parseSmallTuple(src reflect.Value) any {
 
 	arity := int(sb)
 
-	slice := reflect.MakeSlice(reflect.TypeOf([]any{}), 0, arity)
+	sliceType := reflect.SliceOf(deepTypeOf(src.Type()))
+	slice := reflect.MakeSlice(sliceType, 0, arity)
 
 	for i := 0; i < arity; i++ {
 		bflag, err := dec.rd.ReadByte()
@@ -720,7 +701,7 @@ func (dec *Decoder) parseList(src reflect.Value) any {
 
 	length := int(dec.parseInteger(b))
 
-	slice := reflect.MakeSlice(reflect.TypeOf([]any{}), length, length)
+	slice := reflect.MakeSlice(reflect.TypeOf([]any{}), 0, length)
 	for i := 0; i < length; i++ {
 		bflag, err := dec.rd.ReadByte()
 		if err != nil {
@@ -736,12 +717,11 @@ func (dec *Decoder) parseList(src reflect.Value) any {
 		item := dec.parseType(src, flag, b)
 		switch v := item.(type) {
 		case reflect.Value:
-			slice = reflect.Append(slice, v)
+			slice.Set(v)
 
 		default:
 			if item != nil {
-				itemOf := reflect.ValueOf(item)
-				slice = reflect.Append(slice, itemOf)
+				slice = reflect.Append(slice, valueOf(item))
 			}
 		}
 	}
