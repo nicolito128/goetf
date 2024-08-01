@@ -34,11 +34,11 @@ func (dec *Decoder) readType(typ ExternalTagType) (n int, b []byte, err error) {
 	case EttSmallBig:
 		n, b, err = dec.readSmallBig()
 
-	case EttBinary:
-		n, b, err = dec.readBinary()
-
 	case EttLargeBig:
 		n, b, err = dec.readLargeBig()
+
+	case EttBinary:
+		n, b, err = dec.readBinary()
 
 	case EttBitBinary:
 		n, b, err = dec.readBitBinary()
@@ -324,7 +324,7 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) 
 					return err
 				}
 			default:
-				item := dec.parseType(reflect.ValueOf(nil), flag, b)
+				item := dec.parseType(src, flag, b)
 				elem.Set(reflect.ValueOf(item))
 			}
 		}
@@ -355,7 +355,7 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) 
 			case reflect.Slice, reflect.Array, reflect.Map:
 				dec.decodeVariadicType(elem, EttLargeTuple)
 			default:
-				item := dec.parseType(reflect.ValueOf(nil), flag, b)
+				item := dec.parseType(src, flag, b)
 				elem.Set(reflect.ValueOf(item))
 			}
 		}
@@ -381,18 +381,21 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) 
 				return ErrMalformedList
 			}
 
-			elem := src.Index(i)
-			switch elem.Type().Kind() {
-			case reflect.Slice, reflect.Array, reflect.Map:
-				if err := dec.decodeVariadicType(elem, EttList); err != nil {
-					return err
+			switch src.Type().Kind() {
+			case reflect.Slice, reflect.Array:
+				elem := src.Index(i)
+				switch elem.Type().Kind() {
+				case reflect.Slice, reflect.Array:
+					if err := dec.decodeVariadicType(elem, EttList); err != nil {
+						return err
+					}
+
+				default:
+					item := dec.parseType(src, flag, b)
+					elem.Set(reflect.ValueOf(item))
 				}
-			default:
-				item := dec.parseType(reflect.ValueOf(nil), flag, b)
-				elem.Set(reflect.ValueOf(item))
 			}
 		}
-
 		// read the 106 tail byte ([])
 		dec.rd.ReadByte()
 
@@ -450,6 +453,9 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, flag ExternalTagType) 
 
 func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byte) Term {
 	switch tag {
+	case EttNil:
+		return nil
+
 	case EttAtom, EttAtomUTF8, EttString:
 		return dec.parseString(data)
 
@@ -457,10 +463,24 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		return dec.parseString(data)
 
 	case EttSmallInteger:
-		return dec.parseSmallInteger(data)
+		kind := src.Type().Kind()
+
+		if kind == reflect.Int {
+			return int(dec.parseSmallInteger(data))
+		} else if kind == reflect.Uint {
+			return uint(dec.parseSmallInteger(data))
+		} else {
+			return dec.parseSmallInteger(data)
+		}
 
 	case EttInteger:
-		return dec.parseInteger(data)
+		kind := src.Type().Kind()
+
+		if kind == reflect.Int {
+			return int(dec.parseInteger(data))
+		} else {
+			return dec.parseInteger(data)
+		}
 
 	case EttNewFloat:
 		return dec.parseNewFloat(data)
@@ -469,16 +489,84 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		return dec.parseFloat(data)
 
 	case EttSmallBig:
-		return dec.parseSmallBig(data)
+		kind := src.Type().Kind()
+
+		if kind == reflect.Int {
+			return int(dec.parseSmallBig(data))
+		} else {
+			return dec.parseSmallBig(data)
+		}
 
 	case EttLargeBig:
-		return dec.parseLargeBig(data)
+		kind := src.Type().Kind()
+
+		if kind == reflect.Int {
+			return int(dec.parseLargeBig(data))
+		} else {
+			return dec.parseLargeBig(data)
+		}
 
 	case EttBinary:
-		return dec.parseBinary(data)
+		kind := src.Type().Kind()
+
+		if kind == reflect.String {
+			return string(data)
+		} else {
+			return data
+		}
 
 	case EttBitBinary:
-		return dec.parseBinary(data)
+		kind := src.Type().Kind()
+
+		if kind == reflect.String {
+			return string(data)
+		} else {
+			return data
+		}
+
+	case EttList:
+		b := make([]byte, SizeListLength)
+		_, err := dec.rd.Read(b)
+		if err != nil {
+			return ErrMalformedList
+		}
+
+		length := int(dec.parseInteger(b))
+
+		slice := reflect.MakeSlice(reflect.TypeOf([]any{}), 0, length)
+		for i := 0; i < length; i++ {
+			bflag, err := dec.rd.ReadByte()
+			if err != nil {
+				return ErrMalformedList
+			}
+			flag := ExternalTagType(bflag)
+
+			_, b, err := dec.readType(flag)
+			if err != nil {
+				return ErrMalformedList
+			}
+
+			item := dec.parseType(src, flag, b)
+			switch v := item.(type) {
+			case reflect.Value:
+				slice = reflect.Append(slice, v)
+
+			default:
+				if item != nil {
+					itemOf := reflect.ValueOf(item)
+					slice = reflect.Append(slice, itemOf)
+				}
+			}
+
+		}
+		// read the 106 tail byte ([])
+		dec.rd.ReadByte()
+
+		if slice.Len() == 1 {
+			return slice.Index(0)
+		}
+
+		return slice
 
 	case EttMap:
 		switch src.Type().Kind() {
@@ -495,7 +583,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 
 			arity := int(dec.parseInteger(bsize))
 
-			var newMap reflect.Value
+			newMap := reflect.MakeMap(reflect.TypeOf(map[any]any{}))
 			for i := 0; i < arity; i++ {
 				// Key
 				bflag, err := dec.rd.ReadByte()
@@ -523,8 +611,13 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 				}
 				value := dec.parseType(src, valueFlag, b)
 
-				newMap = reflect.MakeMap(src.Type().Elem())
-				newMap.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(value))
+				keyOf := reflect.ValueOf(key)
+				switch v := value.(type) {
+				case reflect.Value:
+					newMap.SetMapIndex(keyOf, v)
+				default:
+					newMap.SetMapIndex(keyOf, reflect.ValueOf(value))
+				}
 			}
 
 			return newMap

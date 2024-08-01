@@ -154,18 +154,36 @@ func TestDecodeLargeBig(t *testing.T) {
 }
 
 func TestDecodeBinary(t *testing.T) {
-	data := make([]byte, 0)
+	{
+		data := make([]byte, 0)
 
-	b := []byte{131, 109, 0, 0, 0, 4, 101, 111, 112, 107}
-	dec := goetf.NewDecoder(b)
+		b := []byte{131, 109, 0, 0, 0, 4, 101, 111, 112, 107}
+		dec := goetf.NewDecoder(b)
 
-	if err := dec.Decode(&data); err != nil {
-		t.Fatal(err)
+		if err := dec.Decode(&data); err != nil {
+			t.Fatal(err)
+		}
+
+		want := []byte{101, 111, 112, 107}
+		if n := slices.Compare(data, want); n != 0 {
+			t.Errorf("want = %v, got = %v", want, data)
+		}
 	}
 
-	want := []byte{101, 111, 112, 107}
-	if n := slices.Compare(data, want); n != 0 {
-		t.Errorf("want = %v, got = %v", want, data)
+	{
+		data := make([]byte, 14)
+
+		b := []byte{131, 109, 0, 0, 0, 14, 91, 34, 116, 101, 115, 116, 34, 93, 44, 123, 34, 116, 34, 125}
+		dec := goetf.NewDecoder(b)
+
+		if err := dec.Decode(&data); err != nil {
+			t.Fatal(err)
+		}
+
+		want := []byte{91, 34, 116, 101, 115, 116, 34, 93, 44, 123, 34, 116, 34, 125}
+		if n := slices.Compare(data, want); n != 0 {
+			t.Errorf("want = %v, got = %v", want, data)
+		}
 	}
 }
 
@@ -273,7 +291,7 @@ func TestDecodeLargeTuple(t *testing.T) {
 }
 
 func TestDecodeList(t *testing.T) {
-	data := []int32{0, 0, 0}
+	data := make([]int32, 3)
 
 	b := []byte{131, 108, 0, 0, 0, 3, 98, 0, 0, 0, 1, 98, 0, 0, 0, 2, 98, 0, 0, 0, 3, 106}
 	dec := goetf.NewDecoder(b)
@@ -282,7 +300,7 @@ func TestDecodeList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var want = []int32{1, 2, 3}
+	want := []int32{1, 2, 3}
 	if slices.Compare(want, data) != 0 {
 		t.Errorf("want = %v, got = %v", want, data)
 	}

@@ -36,10 +36,6 @@ func (dec *Decoder) Decode(v any) error {
 
 // DecodePacket reads the next ETF-encoded packet and stores it in the value pointed to by v.
 func (dec *Decoder) DecodePacket(packet []byte, v any) error {
-	if v == nil {
-		return ErrNilDecodeValue
-	}
-
 	dec.rd.Reset(bytes.NewReader(packet))
 	dec.buf = packet
 	return dec.decode(v)
@@ -241,6 +237,9 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 		switch v := v.(type) {
 		case *[]byte:
 			(*v) = b
+
+		case []byte:
+			copy(v, b)
 
 		default:
 			return ErrDecodeType
