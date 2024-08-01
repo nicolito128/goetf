@@ -583,7 +583,8 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 
 			arity := int(dec.parseInteger(bsize))
 
-			newMap := reflect.MakeMap(reflect.TypeOf(map[any]any{}))
+			var newMap reflect.Value
+			var newMapType reflect.Type
 			for i := 0; i < arity; i++ {
 				// Key
 				bflag, err := dec.rd.ReadByte()
@@ -614,8 +615,17 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 				keyOf := reflect.ValueOf(key)
 				switch v := value.(type) {
 				case reflect.Value:
+					newMapType = reflect.MapOf(keyOf.Type(), v.Type())
+					newMap = reflect.MakeMap(newMapType)
 					newMap.SetMapIndex(keyOf, v)
 				default:
+					if v != nil {
+						newMapType = reflect.MapOf(keyOf.Type(), reflect.TypeOf(v))
+						newMap = reflect.MakeMap(newMapType)
+					} else {
+						newMap = reflect.MakeMap(reflect.TypeOf(map[any]any{}))
+					}
+
 					newMap.SetMapIndex(keyOf, reflect.ValueOf(value))
 				}
 			}
