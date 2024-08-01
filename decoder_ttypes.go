@@ -455,7 +455,15 @@ func (dec *Decoder) decodeVariadicType(src reflect.Value, ettflag ExternalTagTyp
 			}
 			value := dec.parseType(src, valueFlag, b)
 
-			src.SetMapIndex(valueOf(key), valueOf(value))
+			if src.Type().Kind() == reflect.Pointer {
+				if src.Type().Elem().Kind() == reflect.Struct {
+					if err := dec.decodeStruct(src, key, value); err != nil {
+						return err
+					}
+				}
+			} else {
+				src.SetMapIndex(valueOf(key), valueOf(value))
+			}
 		}
 	}
 
@@ -468,10 +476,28 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		return nil
 
 	case EttAtom, EttAtomUTF8, EttString:
-		return dec.parseString(data)
+		s := dec.parseString(data)
+		if s == "true" {
+			return true
+		}
+
+		if s == "false" {
+			return false
+		}
+
+		return s
 
 	case EttSmallAtom, EttSmallAtomUTF8:
-		return dec.parseString(data)
+		s := dec.parseString(data)
+		if s == "true" {
+			return true
+		}
+
+		if s == "false" {
+			return false
+		}
+
+		return s
 
 	case EttSmallInteger:
 		kind := deepTypeOf(src.Type()).Kind()
@@ -485,7 +511,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		}
 
 	case EttInteger:
-		kind := src.Type().Kind()
+		kind := deepTypeOf(src.Type()).Kind()
 
 		if kind == reflect.Int {
 			return int(dec.parseInteger(data))
@@ -500,7 +526,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		return dec.parseFloat(data)
 
 	case EttSmallBig:
-		kind := src.Type().Kind()
+		kind := deepTypeOf(src.Type()).Kind()
 
 		if kind == reflect.Int {
 			return int(dec.parseSmallBig(data))
@@ -509,7 +535,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		}
 
 	case EttLargeBig:
-		kind := src.Type().Kind()
+		kind := deepTypeOf(src.Type()).Kind()
 
 		if kind == reflect.Int {
 			return int(dec.parseLargeBig(data))
@@ -518,7 +544,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		}
 
 	case EttBinary:
-		kind := src.Type().Kind()
+		kind := deepTypeOf(src.Type()).Kind()
 
 		if kind == reflect.String {
 			return string(data)
@@ -527,7 +553,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 		}
 
 	case EttBitBinary:
-		kind := src.Type().Kind()
+		kind := deepTypeOf(src.Type()).Kind()
 
 		if kind == reflect.String {
 			return string(data)

@@ -72,14 +72,38 @@ func (dec *Decoder) decode(v any) error {
 			return ErrMalformed
 		}
 
-		err = dec.decodeStatic(ExternalTagType(b), v)
+		flag := ExternalTagType(b)
+		err = dec.decodeStatic(flag, v)
 		if err != nil {
 			return err
 		}
 	}
 }
 
+func (dec *Decoder) decodeStruct(src reflect.Value, key, value any) error {
+	strutcs := src.Elem()
+	typ := src.Elem().Type()
+	for i := 0; i < strutcs.NumField(); i++ {
+		fieldValue := strutcs.Field(i)
+		fieldName := typ.Field(i)
+		fieldTag := fieldName.Tag.Get("etf")
+
+		k, ok := key.(string)
+		if !ok {
+			return ErrMalformed
+		}
+
+		if k == fieldTag {
+			fieldValue.Set(valueOf(value))
+		}
+	}
+
+	return nil
+}
+
 func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
+	vOf := reflect.ValueOf(v)
+
 	switch tag {
 	case EttAtom, EttAtomUTF8:
 		_, b, err := dec.readAtomUTF8()
@@ -87,13 +111,18 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 			return err
 		}
 
-		ptr, ok := (v).(*string)
-		if !ok {
-			return ErrDecodeType
-		}
-
 		s := dec.parseString(b)
-		(*ptr) = dec.atomCache.Deduplicate(s)
+		switch v := v.(type) {
+		case *string:
+			(*v) = dec.atomCache.Deduplicate(s)
+
+		case *bool:
+			if s == "true" {
+				(*v) = true
+			} else {
+				(*v) = false
+			}
+		}
 
 	case EttSmallAtom, EttSmallAtomUTF8:
 		_, b, err := dec.readSmallAtomUTF8()
@@ -260,7 +289,7 @@ func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
 		}
 
 	case EttSmallTuple, EttLargeTuple, EttList, EttMap:
-		if err := dec.decodeVariadicType(reflect.ValueOf(v), tag); err != nil {
+		if err := dec.decodeVariadicType(vOf, tag); err != nil {
 			return err
 		}
 	}

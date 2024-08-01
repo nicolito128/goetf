@@ -1,6 +1,8 @@
 package goetf
 
-import "reflect"
+import (
+	"reflect"
+)
 
 func valueOf(value any) reflect.Value {
 	switch v := value.(type) {
