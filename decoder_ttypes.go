@@ -615,9 +615,7 @@ func (dec *Decoder) parseType(src reflect.Value, tag ExternalTagType, data []byt
 				keyOf := reflect.ValueOf(key)
 				switch v := value.(type) {
 				case reflect.Value:
-					newMapType = reflect.MapOf(keyOf.Type(), v.Type())
-					newMap = reflect.MakeMap(newMapType)
-					newMap.SetMapIndex(keyOf, v)
+					src.SetMapIndex(keyOf, v)
 				default:
 					if v != nil {
 						newMapType = reflect.MapOf(keyOf.Type(), reflect.TypeOf(v))
