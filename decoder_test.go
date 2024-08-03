@@ -20,6 +20,48 @@ func TestDecodeSmallInteger(t *testing.T) {
 	}
 }
 
+func TestDecodeInteger(t *testing.T) {
+	b := []byte{131, 98, 0, 2, 0, 1}
+
+	var out int32
+	if err := Unmarshal(b, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	var want int32 = 131073
+	if want != out {
+		t.Errorf("want = %v, got = %v", want, out)
+	}
+}
+
+func TestDecodeSmallBig(t *testing.T) {
+	b := []byte{131, 110, 5, 1, 199, 25, 70, 150, 2}
+
+	var out int64
+	if err := Unmarshal(b, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	var want int64 = -11111111111
+	if want != out {
+		t.Errorf("want = %v, got = %v", want, out)
+	}
+}
+
+func TestDecodeLargeBig(t *testing.T) {
+	b := []byte{131, 111, 0, 0, 0, 6, 0, 100, 101, 97, 33, 75, 128}
+
+	var out int64
+	if err := Unmarshal(b, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	var want int64 = 141060170933604
+	if want != out {
+		t.Errorf("want = %v, got = %v", want, out)
+	}
+}
+
 func TestDecodeSmallAtom(t *testing.T) {
 	{
 		b := []byte{131, 119, 4, 116, 114, 117, 101}
@@ -44,6 +86,63 @@ func TestDecodeSmallAtom(t *testing.T) {
 		if want != out {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
+	}
+}
+
+func TestDecodeString(t *testing.T) {
+	b := []byte{131, 107, 0, 12, 104, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100}
+
+	var out string
+	if err := Unmarshal(b, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "hello, world"
+	if want != out {
+		t.Errorf("unmarshal error: want = %v got = %v", want, out)
+	}
+}
+
+func TestDecodeBinary(t *testing.T) {
+	{
+		b := []byte{131, 109, 0, 0, 0, 4, 101, 111, 112, 107}
+
+		out := make([]byte, 0)
+		if err := Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		want := []byte{101, 111, 112, 107}
+		if n := slices.Compare(want, out); n != 0 {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{
+		b := []byte{131, 109, 0, 0, 0, 14, 91, 34, 116, 101, 115, 116, 34, 93, 44, 123, 34, 116, 34, 125}
+
+		out := make([]byte, 0)
+		if err := Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		want := []byte{91, 34, 116, 101, 115, 116, 34, 93, 44, 123, 34, 116, 34, 125}
+		if n := slices.Compare(want, out); n != 0 {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+}
+
+func TestDecodeBitBinary(t *testing.T) {
+	b := []byte{131, 77, 0, 0, 0, 3, 8, 128, 100, 99}
+
+	out := make([]byte, 0)
+	if err := Unmarshal(b, &out); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []byte{128, 100, 99}
+	if n := slices.Compare(want, out); n != 0 {
+		t.Errorf("unmarshal error: want = %v got = %v", want, out)
 	}
 }
 
