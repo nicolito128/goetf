@@ -124,9 +124,3 @@ type Export struct {
 	Function Atom
 	Arity    int
 }
-
-// KV helper.
-type KV struct {
-	Key   Atom
-	Value Term
-}
