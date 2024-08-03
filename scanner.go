@@ -62,11 +62,6 @@ func (s *scanner) readN(n int) (int, []byte, error) {
 	return bytes, s.buf[s.scanp-bytes : s.scanp], nil
 }
 
-func (s *scanner) readTo(p []byte) (int, error) {
-	n, err := s.r.Read(p)
-	return n, err
-}
-
 func (s *scanner) forward(steps int) {
 	s.scanp += steps
 	s.scanned += int64(steps)
