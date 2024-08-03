@@ -196,13 +196,24 @@ func (d *Decoder) readNext() (*binaryElement, error) {
 
 func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 	vOf := derefValueOf(v)
-	kind := vOf.Type().Kind()
+
+	var kind reflect.Kind
+	if v != nil {
+		kind = vOf.Type().Kind()
+	}
 
 	switch elem.tag {
 	default:
 		parsed := d.parseStaticType(vOf.Type().Kind(), elem.tag, elem.body)
-		vOf.Set(valueOf(parsed))
-		return parsed
+
+		if v != nil {
+			parsedOf := valueOf(parsed)
+			if parsedOf.IsValid() {
+				vOf.Set(parsedOf)
+			}
+
+			return parsed
+		}
 
 	case EttSmallTuple, EttLargeTuple:
 		if len(elem.items) > 0 && (kind == reflect.Slice) {
@@ -229,7 +240,7 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 		}
 
 	case EttMap:
-		if len(elem.dict) > 0 && (kind == reflect.Map || kind == reflect.Struct) {
+		if len(elem.dict) > 0 {
 			if kind == reflect.Map {
 				mapType := reflect.MapOf(vOf.Type().Key(), vOf.Type().Elem())
 				m := reflect.MakeMap(mapType)
@@ -239,12 +250,40 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 					valElem := elem.dict[i+1]
 
 					keyOf := derefValueOf(reflect.New(vOf.Type().Key()))
-					d.decodeValue(keyElem, keyOf)
+					key := d.decodeValue(keyElem, keyOf)
 
 					valOf := derefValueOf(reflect.New(vOf.Type().Elem()))
-					d.decodeValue(valElem, valOf)
+					val := d.decodeValue(valElem, valOf)
 
-					m.SetMapIndex(keyOf, valOf)
+					if val != nil && key != nil {
+						m.SetMapIndex(valueOf(key), derefValueOf(val))
+					} else {
+						m.SetMapIndex(derefValueOf(keyOf), derefValueOf(valOf))
+					}
+				}
+
+				return m
+			}
+
+			if kind == reflect.Interface {
+				m := map[any]any{}
+				mapOf := valueOf(m)
+
+				for i := 0; i < len(elem.dict)-1; i += 2 {
+					keyElem := elem.dict[i]
+					valElem := elem.dict[i+1]
+
+					keyOf := reflect.New(mapOf.Type().Elem())
+					key := d.decodeValue(keyElem, keyOf)
+
+					valOf := reflect.New(mapOf.Type().Elem())
+					val := d.decodeValue(valElem, valOf)
+
+					if val != nil && key != nil {
+						mapOf.SetMapIndex(valueOf(key), derefValueOf(val))
+					} else {
+						mapOf.SetMapIndex(derefValueOf(keyOf), derefValueOf(valOf))
+					}
 				}
 
 				return m
@@ -273,7 +312,11 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 						valOf := derefValueOf(field)
 						valParsed := d.decodeValue(valElem, valOf)
 
-						field.Set(valueOf(valParsed))
+						if valParsed != nil {
+							field.Set(valueOf(valParsed))
+						} else {
+							field.Set(derefValueOf(valOf))
+						}
 					}
 				}
 			}
