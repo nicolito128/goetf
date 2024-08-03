@@ -3,6 +3,7 @@ package goetf
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"reflect"
 
@@ -257,6 +258,19 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 
 	case EttList:
 		if len(elem.items) > 0 {
+			if kind == reflect.Interface {
+				fmt.Println("here list interface")
+				arrType := reflect.ArrayOf(len(elem.items)-1, derefValueOf(vOf).Type())
+				arr := derefValueOf(reflect.New(arrType))
+				for i, item := range elem.items {
+					if item.tag != EttNil {
+						d.decodeValue(item, (arr).Index(i))
+					}
+				}
+
+				return arr
+			}
+
 			if kind == reflect.Array {
 				arrType := reflect.ArrayOf(len(elem.items)-1, derefValueOf(vOf).Type().Elem())
 				arr := derefValueOf(reflect.New(arrType))
@@ -287,6 +301,7 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 					valOf := derefValueOf(reflect.New(vOf.Type().Elem()))
 					val := d.decodeValue(valElem, valOf)
 
+					fmt.Println("Key - Val:", key, val)
 					if val != nil && key != nil {
 						m.SetMapIndex(valueOf(key), derefValueOf(val))
 					} else {
@@ -311,6 +326,8 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 					valOf := reflect.New(mapOf.Type().Elem())
 					val := d.decodeValue(valElem, valOf)
 
+					fmt.Println("Key - Val:", key, val)
+					fmt.Println("KeyOf - ValOf:", derefValueOf(keyOf), derefValueOf(valOf))
 					if val != nil && key != nil {
 						mapOf.SetMapIndex(valueOf(key), derefValueOf(val))
 					} else {
