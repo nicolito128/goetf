@@ -252,15 +252,38 @@ func TestDecodeMap(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
+	{
+		type foo struct {
+			Bar string `etf:"bar"`
+		}
+
+		b := []byte{
+			131, 116, 0, 0, 0, 2, 119, 3, 98, 117, 122, 116, 0, 0, 0, 1, 119, 3, 98,
+			97, 114, 107, 0, 6, 98, 117, 122, 98, 97, 114, 119, 3, 98, 97, 122, 116,
+			0, 0, 0, 1, 119, 3, 98, 97, 114, 107, 0, 6, 98, 97, 122, 98, 97, 114,
+		}
+
+		out := map[string]*foo{}
+		if err := Unmarshal(b, out); err != nil {
+			t.Fatal(err)
+		}
+
+		want := map[string]*foo{"buz": {Bar: "buzbar"}, "baz": {Bar: "bazbar"}}
+		wBuz, oBuz := want["buz"], out["buz"]
+		wBaz, oBaz := want["baz"], out["baz"]
+		if wBuz.Bar != oBuz.Bar || wBaz.Bar != oBaz.Bar {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
 }
 
 func TestDecodeStruct(t *testing.T) {
-	type user struct {
-		Name string `etf:"name"`
-		Age  uint8  `etf:"age"`
-	}
-
 	{
+		type user struct {
+			Name string `etf:"name"`
+			Age  uint8  `etf:"age"`
+		}
+
 		b := []byte{
 			131, 116, 0, 0, 0, 2,
 			119, 4, 110, 97, 109, 101, 107, 0, 4, 77, 105, 108, 101,
@@ -277,22 +300,52 @@ func TestDecodeStruct(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
-
-	type C struct {
-		B string `etf:"b"`
-		A []int  `etf:"a"`
-	}
-
 	{
+		type c struct {
+			B string `etf:"b"`
+			A []int  `etf:"a"`
+		}
+
 		b := []byte{131, 116, 0, 0, 0, 2, 119, 1, 97, 104, 2, 97, 1, 97, 2, 119, 1, 98, 107, 0, 1, 98}
 
-		var out C
+		var out c
 		if err := Unmarshal(b, &out); err != nil {
 			t.Fatal(err)
 		}
 
-		want := C{A: []int{1, 2}, B: "b"}
+		want := c{A: []int{1, 2}, B: "b"}
 		if !slices.Equal(want.A, out.A) || want.B != out.B {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{
+		type axes struct {
+			X float64 `etf:"x"`
+			Y float64 `etf:"y"`
+		}
+
+		b := []byte{
+			131, 104, 2, 116, 0, 0, 0, 2, 119, 1, 121, 70, 64, 35, 204, 204, 204,
+			204, 204, 205, 119, 1, 120, 70, 64, 5, 153, 153, 153, 153, 153, 154,
+			116, 0, 0, 0, 2, 119, 1, 121, 70, 64, 0, 20, 122, 225, 71, 174, 20,
+			119, 1, 120, 70, 63, 243, 174, 20, 122, 225, 71, 174,
+		}
+
+		out := make([]*axes, 0)
+		if err := Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		want := []*axes{{X: 2.7, Y: 9.9}, {X: 1.23, Y: 2.01}}
+		if len(want) != len(out) {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+
+		if want[0].X != out[0].X || want[0].Y != out[0].Y {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+
+		if want[1].X != out[1].X || want[1].Y != out[1].Y {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}

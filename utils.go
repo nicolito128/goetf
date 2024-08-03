@@ -1,6 +1,8 @@
 package goetf
 
-import "reflect"
+import (
+	"reflect"
+)
 
 func valueOf(v any) reflect.Value {
 	switch v := v.(type) {
@@ -13,12 +15,16 @@ func valueOf(v any) reflect.Value {
 
 func derefValueOf(v any) reflect.Value {
 	vOf := valueOf(v)
-	switch vOf.Type().Kind() {
-	case reflect.Pointer:
-		return derefValueOf(vOf.Elem())
-	default:
-		return vOf
+	if vOf.IsValid() {
+		switch vOf.Type().Kind() {
+		case reflect.Pointer:
+			return derefValueOf(vOf.Elem())
+		default:
+			return vOf
+		}
 	}
+
+	return vOf
 }
 
 func TagString(ett ExternalTagType) string {

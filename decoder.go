@@ -213,16 +213,17 @@ func (d *Decoder) readNext() (*binaryElement, error) {
 }
 
 func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
-	vOf := derefValueOf(v)
-
+	var vOf reflect.Value
 	var kind reflect.Kind
-	if v != nil {
+
+	vOf = derefValueOf(v)
+	if vOf.IsValid() {
 		kind = vOf.Type().Kind()
 	}
 
 	switch elem.tag {
 	default:
-		parsed := d.parseStaticType(vOf.Type().Kind(), elem.tag, elem.body)
+		parsed := d.parseStaticType(kind, elem.tag, elem.body)
 
 		if v != nil {
 			parsedOf := valueOf(parsed)
@@ -236,9 +237,30 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 	case EttSmallTuple, EttLargeTuple:
 		if len(elem.items) > 0 {
 			if kind == reflect.Slice {
-				tuple := reflect.MakeSlice(vOf.Type(), len(elem.items), len(elem.items))
+				var sliceType reflect.Type
+				var sliceOfPointers bool
+				if elemTyp := vOf.Type().Elem(); elemTyp.Kind() == reflect.Pointer {
+					sliceType = reflect.SliceOf(elemTyp.Elem())
+					sliceOfPointers = true
+				} else {
+					sliceType = vOf.Type()
+				}
+
+				tuple := reflect.MakeSlice(sliceType, len(elem.items), len(elem.items))
 				for i, item := range elem.items {
-					d.decodeValue(item, tuple.Index(i))
+					tpElem := tuple.Index(i)
+					d.decodeValue(item, derefValueOf(tpElem))
+				}
+
+				if sliceOfPointers {
+					tuplePtrs := reflect.MakeSlice(vOf.Type(), len(elem.items), len(elem.items))
+					for i := range len(elem.items) {
+						tpElem := tuple.Index(i)
+						ptrElem := tuplePtrs.Index(i)
+						ptrElem.Set(tpElem.Addr())
+					}
+
+					return tuplePtrs
 				}
 
 				return tuple
@@ -258,12 +280,31 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 	case EttList:
 		if len(elem.items) > 0 {
 			if kind == reflect.Interface {
-				arrType := reflect.ArrayOf(len(elem.items)-1, derefValueOf(vOf).Type())
+				var arrType reflect.Type
+				var arrOfPtrs bool
+				if elemTyp := vOf.Type().Elem(); elemTyp.Kind() == reflect.Pointer {
+					arrType = reflect.ArrayOf(len(elem.items), elemTyp.Elem())
+					arrOfPtrs = true
+				} else {
+					arrType = vOf.Type()
+				}
+
 				arr := derefValueOf(reflect.New(arrType))
 				for i, item := range elem.items {
 					if item.tag != EttNil {
 						d.decodeValue(item, (arr).Index(i))
 					}
+				}
+
+				if arrOfPtrs {
+					arrPtrs := reflect.MakeSlice(vOf.Type(), len(elem.items), len(elem.items))
+					for i := range len(elem.items) {
+						arrElem := arr.Index(i)
+						ptrElem := arrPtrs.Index(i)
+						ptrElem.Set(arrElem.Addr())
+					}
+
+					return arrPtrs
 				}
 
 				return arr
@@ -286,6 +327,13 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 	case EttMap:
 		if len(elem.dict) > 0 {
 			if kind == reflect.Map {
+				var valueType reflect.Type
+				if mapValueElem := vOf.Type().Elem(); mapValueElem.Kind() == reflect.Pointer {
+					valueType = mapValueElem.Elem()
+				} else {
+					valueType = vOf.Type().Elem()
+				}
+
 				mapType := reflect.MapOf(vOf.Type().Key(), vOf.Type().Elem())
 				m := reflect.MakeMap(mapType)
 
@@ -296,13 +344,17 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 					keyOf := derefValueOf(reflect.New(vOf.Type().Key()))
 					key := d.decodeValue(keyElem, keyOf)
 
-					valOf := derefValueOf(reflect.New(vOf.Type().Elem()))
+					valOf := derefValueOf(reflect.New(valueType))
 					val := d.decodeValue(valElem, valOf)
 
 					if val != nil && key != nil {
-						m.SetMapIndex(valueOf(key), derefValueOf(val))
+						m.SetMapIndex(valueOf(key), valueOf(val))
 					} else {
-						m.SetMapIndex(derefValueOf(keyOf), derefValueOf(valOf))
+						if valOf.CanAddr() {
+							m.SetMapIndex(keyOf, valOf.Addr())
+						} else {
+							m.SetMapIndex(valueOf(keyOf), valueOf(valOf))
+						}
 					}
 				}
 
