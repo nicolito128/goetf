@@ -14,12 +14,7 @@ func (d *Decoder) parseStaticType(kind reflect.Kind, tag ExternalTagType, data [
 		return nil
 
 	case EttString:
-		switch kind {
-		default:
-			return d.parseString(data)
-		case reflect.Slice:
-			return data
-		}
+		return d.parseString(data)
 
 	case EttAtom, EttAtomUTF8, EttSmallAtom, EttSmallAtomUTF8:
 		s := d.parseString(data)
