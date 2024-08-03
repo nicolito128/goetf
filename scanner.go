@@ -54,7 +54,7 @@ func (s *scanner) readN(n int) (int, []byte, error) {
 	}
 
 	bytes, err := s.r.Read(s.buf[s.scanp : s.scanp+n])
-	s.forward(n)
+	s.forward(bytes)
 	if err != nil {
 		return bytes, s.buf, err
 	}
