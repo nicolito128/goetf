@@ -9,39 +9,57 @@ import (
 	"github.com/philpearl/intern"
 )
 
+// Unmarshaler is the interface implemented by types that can unmarshal a ETF description of themselves.
+// The input can be assumed to be a valid encoding of a ETF value.
+// UnmarshalETF must copy the ETF data if it wishes to retain the data after returning.
+type Unmarshaler interface {
+	UnmarshalETF(data []byte, dst any) (err error)
+}
+
+// Unmarshal parses the ETF-encoded data and stores the result in the value pointed to by v.
 func Unmarshal(data []byte, v any) error {
 	dec := NewDecoder(bytes.NewReader(data))
 	return dec.Decode(v)
 }
 
+// A Decoder reads and decodes ETF values from an input stream buffer.
 type Decoder struct {
+	// buffer reader
 	r io.Reader
-
+	// scanner for buffer
 	scan *scanner
-
+	// cache for atoms
 	cache *intern.Intern
-
-	err error
-
+	// number of atoms that can be stored, by default it's 4096
+	cacheSize int
+	// if the buffer was touched, starting with the version flag
 	dirty bool
 }
 
+// NewDecoder returns a new *Decoder that reads from r.
+//
+// The decoder uses its own buffering.
 func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{r: r}
+	return &Decoder{r: r, cacheSize: 4096}
 }
 
+// Decode reads the next ETF-encoded data from its buffer and stores it in the value pointed to by v.
 func (d *Decoder) Decode(v any) error {
-	if d.err != nil {
-		return d.err
-	}
-
 	d.init()
 	return d.decode(v)
 }
 
+// SetCache sets a new atom cache with the input capacity.
+//
+// The default cache capacity is 4096.
+func (d *Decoder) SetCache(cap int) {
+	d.cacheSize = cap
+	d.cache = intern.New(cap)
+}
+
 func (d *Decoder) init() {
 	if d.cache == nil {
-		d.cache = intern.New(2048)
+		d.cache = intern.New(d.cacheSize)
 	}
 
 	if d.scan == nil {
