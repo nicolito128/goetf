@@ -58,7 +58,7 @@ func (d *Decoder) decode(v any) error {
 		}
 
 		if ver != Version {
-			return ErrMalformed
+			return errMalformed
 		}
 
 		d.dirty = true
@@ -92,7 +92,7 @@ func (d *Decoder) decode(v any) error {
 func (d *Decoder) readNext() (*binaryElement, error) {
 	typeTag, err := d.scan.readByte()
 	if err != nil {
-		return nil, ErrMalformed
+		return nil, errMalformed
 	}
 
 	dst := newBinaryElement(typeTag, nil)
@@ -107,12 +107,12 @@ func (d *Decoder) readNext() (*binaryElement, error) {
 	case EttSmallTuple:
 		bArity, err := d.scan.readByte()
 		if err != nil {
-			return nil, ErrMalformedSmallTuple
+			return nil, errMalformedSmallTuple
 		}
 
 		arity := int(bArity)
 		if arity == 0 {
-			return nil, ErrMalformedSmallTuple
+			return nil, errMalformedSmallTuple
 		}
 
 		for range arity {
@@ -127,12 +127,12 @@ func (d *Decoder) readNext() (*binaryElement, error) {
 	case EttLargeTuple:
 		_, bArity, err := d.scan.readN(SizeLargeTupleArity)
 		if err != nil {
-			return nil, ErrMalformedLargeTuple
+			return nil, errMalformedLargeTuple
 		}
 
 		arity := int(binary.BigEndian.Uint32(bArity))
 		if arity == 0 {
-			return nil, ErrMalformedLargeTuple
+			return nil, errMalformedLargeTuple
 		}
 
 		for range arity {
@@ -147,12 +147,12 @@ func (d *Decoder) readNext() (*binaryElement, error) {
 	case EttList:
 		_, bLen, err := d.scan.readN(SizeListLength)
 		if err != nil {
-			return nil, ErrMalformedList
+			return nil, errMalformedList
 		}
 
 		length := int(binary.BigEndian.Uint32(bLen))
 		if length == 0 {
-			return nil, ErrMalformedList
+			return nil, errMalformedList
 		}
 
 		for range length + 1 {
@@ -167,23 +167,23 @@ func (d *Decoder) readNext() (*binaryElement, error) {
 	case EttMap:
 		_, bArity, err := d.scan.readN(SizeMapArity)
 		if err != nil {
-			return nil, ErrMalformedMap
+			return nil, errMalformedMap
 		}
 
 		arity := int(binary.BigEndian.Uint32(bArity))
 		if arity == 0 {
-			return nil, ErrMalformedMap
+			return nil, errMalformedMap
 		}
 
 		for range arity {
 			keyElem, err := d.readNext()
 			if err != nil {
-				return nil, ErrMalformedMap
+				return nil, errMalformedMap
 			}
 
 			valElem, err := d.readNext()
 			if err != nil {
-				return nil, ErrMalformedMap
+				return nil, errMalformedMap
 			}
 
 			dst.append(typeTag, keyElem)

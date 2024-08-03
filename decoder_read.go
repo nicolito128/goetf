@@ -10,7 +10,7 @@ import (
 func (d *Decoder) readStaticType(tag ExternalTagType) (n int, b []byte, err error) {
 	switch tag {
 	default:
-		n, b, err = 0, nil, ErrMalformed
+		n, b, err = 0, nil, errMalformed
 	case EttNil:
 		n, b, err = 0, []byte{EttNil}, nil
 	case EttSmallInteger:
@@ -43,23 +43,23 @@ func (d *Decoder) readStaticType(tag ExternalTagType) (n int, b []byte, err erro
 func (d *Decoder) readBitBinary() (int, []byte, error) {
 	n, bLen, err := d.scan.readN(SizeBitBinaryLen)
 	if err != nil {
-		return n, bLen, ErrMalformedBitBinary
+		return n, bLen, errMalformedBitBinary
 	}
 
 	if n < SizeBitBinaryLen {
-		return n, bLen, ErrMalformedBitBinary
+		return n, bLen, errMalformedBitBinary
 	}
 
 	length := int(binary.BigEndian.Uint32(bLen))
 
 	_, err = d.scan.readByte()
 	if err != nil {
-		return n + 1, bLen, ErrMalformedBitBinary
+		return n + 1, bLen, errMalformedBitBinary
 	}
 
 	n, data, err := d.scan.readN(length)
 	if err != nil {
-		return n, data, ErrMalformedBitBinary
+		return n, data, errMalformedBitBinary
 	}
 
 	return n, data, nil
@@ -68,18 +68,18 @@ func (d *Decoder) readBitBinary() (int, []byte, error) {
 func (d *Decoder) readAtomUTF8() (int, []byte, error) {
 	n, bLen, err := d.scan.readN(SizeAtomUTF8)
 	if err != nil {
-		return n, bLen, ErrMalformedAtomUTF8
+		return n, bLen, errMalformedAtomUTF8
 	}
 	length := int(binary.BigEndian.Uint16(bLen))
 
 	// {..., 118, 0, 0, ...}
 	if length == 0 {
-		return n, bLen, ErrMalformedAtomUTF8
+		return n, bLen, errMalformedAtomUTF8
 	}
 
 	n, data, err := d.scan.readN(length)
 	if err != nil {
-		return n, data, ErrMalformedAtomUTF8
+		return n, data, errMalformedAtomUTF8
 	}
 
 	return n, data, nil
@@ -88,18 +88,18 @@ func (d *Decoder) readAtomUTF8() (int, []byte, error) {
 func (d *Decoder) readSmallAtomUTF8() (int, []byte, error) {
 	bLen, err := d.scan.readByte()
 	if err != nil {
-		return 1, nil, ErrMalformedSmallAtomUTF8
+		return 1, nil, errMalformedSmallAtomUTF8
 	}
 
 	length := int(bLen)
 
 	if length == 0 {
-		return 1, nil, ErrMalformedSmallAtomUTF8
+		return 1, nil, errMalformedSmallAtomUTF8
 	}
 
 	n, data, err := d.scan.readN(length)
 	if err != nil {
-		return n, data, ErrMalformedSmallAtomUTF8
+		return n, data, errMalformedSmallAtomUTF8
 	}
 
 	return n, data, nil
@@ -108,22 +108,22 @@ func (d *Decoder) readSmallAtomUTF8() (int, []byte, error) {
 func (d *Decoder) readLargeBig() (int, []byte, error) {
 	n, bN, err := d.scan.readN(SizeLargeBigN)
 	if err != nil {
-		return n, bN, ErrMalformedLargeBig
+		return n, bN, errMalformedLargeBig
 	}
 
 	if n < SizeLargeBigN {
-		return n, bN, ErrMalformedLargeBig
+		return n, bN, errMalformedLargeBig
 	}
 	N := int(binary.BigEndian.Uint32(bN))
 
 	sign, err := d.scan.readByte()
 	if err != nil {
-		return n, nil, ErrMalformedLargeBig
+		return n, nil, errMalformedLargeBig
 	}
 
 	n, data, err := d.scan.readN(N) // N+1 to store internaly the sign
 	if err != nil {
-		return n, data, ErrMalformedSmallBig
+		return n, data, errMalformedSmallBig
 	}
 
 	if N < 8 {
@@ -142,7 +142,7 @@ func (d *Decoder) readLargeBig() (int, []byte, error) {
 func (d *Decoder) readSmallBig() (int, []byte, error) {
 	bN, err := d.scan.readByte()
 	if err != nil {
-		return 1, nil, ErrMalformedSmallBig
+		return 1, nil, errMalformedSmallBig
 	}
 	// 'N' is the amount of bytes that are used for the small big
 	N := int(bN)
@@ -150,13 +150,13 @@ func (d *Decoder) readSmallBig() (int, []byte, error) {
 	// positive or negative sign
 	sign, err := d.scan.readByte()
 	if err != nil {
-		return 1, nil, ErrMalformedSmallBig
+		return 1, nil, errMalformedSmallBig
 	}
 
 	// fill with 0 to allow parsing
 	n, data, err := d.scan.readN(N) // N+1 to store internaly the sign
 	if err != nil {
-		return n, data, ErrMalformedSmallBig
+		return n, data, errMalformedSmallBig
 	}
 
 	if N < 8 {
@@ -173,17 +173,17 @@ func (d *Decoder) readSmallBig() (int, []byte, error) {
 func (d *Decoder) readBinary() (int, []byte, error) {
 	n, bLen, err := d.scan.readN(SizeBinaryLen)
 	if err != nil {
-		return n, bLen, ErrMalformedBinary
+		return n, bLen, errMalformedBinary
 	}
 	length := int(binary.BigEndian.Uint32(bLen))
 
 	n, binary, err := d.scan.readN(length)
 	if err != nil {
-		return n, binary, ErrMalformedBinary
+		return n, binary, errMalformedBinary
 	}
 
 	if n < length {
-		return n, binary, ErrMalformedBinary
+		return n, binary, errMalformedBinary
 	}
 
 	return n, binary, nil
@@ -192,17 +192,17 @@ func (d *Decoder) readBinary() (int, []byte, error) {
 func (d *Decoder) readString() (int, []byte, error) {
 	n, bLen, err := d.scan.readN(SizeStringLength)
 	if err != nil {
-		return n, bLen, ErrMalformedString
+		return n, bLen, errMalformedString
 	}
 	length := int(binary.BigEndian.Uint16(bLen))
 
 	if length == 0 {
-		return n, bLen, ErrMalformedString
+		return n, bLen, errMalformedString
 	}
 
 	n, bStr, err := d.scan.readN(length)
 	if err != nil {
-		return n, bStr, ErrMalformedString
+		return n, bStr, errMalformedString
 	}
 
 	return n, bStr, nil
@@ -211,7 +211,7 @@ func (d *Decoder) readString() (int, []byte, error) {
 func (d *Decoder) readSmallInteger() (int, []byte, error) {
 	num, err := d.scan.readByte()
 	if err != nil {
-		return 1, []byte{num}, ErrMalformedSmallInteger
+		return 1, []byte{num}, errMalformedSmallInteger
 	}
 
 	return 1, []byte{num}, nil
@@ -220,7 +220,7 @@ func (d *Decoder) readSmallInteger() (int, []byte, error) {
 func (d *Decoder) readInteger() (int, []byte, error) {
 	n, num, err := d.scan.readN(SizeInteger)
 	if err != nil {
-		return n, num, ErrMalformedInteger
+		return n, num, errMalformedInteger
 	}
 
 	return n, num, nil
@@ -229,11 +229,11 @@ func (d *Decoder) readInteger() (int, []byte, error) {
 func (d *Decoder) readNewFloat() (int, []byte, error) {
 	n, num, err := d.scan.readN(SizeNewFloat)
 	if err != nil {
-		return n, num, ErrMalformedNewFloat
+		return n, num, errMalformedNewFloat
 	}
 
 	if n < (SizeNewFloat) {
-		return n, num, ErrMalformedNewFloat
+		return n, num, errMalformedNewFloat
 	}
 
 	return n, num, nil
@@ -242,7 +242,7 @@ func (d *Decoder) readNewFloat() (int, []byte, error) {
 func (d *Decoder) readFloat() (int, []byte, error) {
 	n, num, err := d.scan.readN(SizeFloat)
 	if err != nil {
-		return n, num, ErrMalformedFloat
+		return n, num, errMalformedFloat
 	}
 
 	return n, num, nil
