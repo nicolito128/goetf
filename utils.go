@@ -1,34 +1,22 @@
 package goetf
 
-import (
-	"reflect"
-)
+import "reflect"
 
-func valueOf(value any) reflect.Value {
-	switch v := value.(type) {
+func valueOf(v any) reflect.Value {
+	switch v := v.(type) {
 	case reflect.Value:
 		return v
 	default:
-		return reflect.ValueOf(value)
+		return reflect.ValueOf(v)
 	}
 }
 
-func deepTypeOf(value reflect.Type) reflect.Type {
-	var kind reflect.Type
-
-	switch value.Kind() {
+func derefValueOf(v any) reflect.Value {
+	vOf := valueOf(v)
+	switch vOf.Type().Kind() {
 	case reflect.Pointer:
-		kind = deepTypeOf(value.Elem())
-
-	case reflect.Array:
-		kind = deepTypeOf(value.Elem())
-
-	case reflect.Slice:
-		kind = deepTypeOf(value.Elem())
-
+		return derefValueOf(vOf.Elem())
 	default:
-		kind = value
+		return vOf
 	}
-
-	return kind
 }

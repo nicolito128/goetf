@@ -1,296 +1,285 @@
 package goetf
 
 import (
-	"bufio"
 	"bytes"
+	"encoding/binary"
+	"fmt"
 	"io"
 	"reflect"
 
 	"github.com/philpearl/intern"
 )
 
-// Decoder allows embedding ETF byte slices into valid Go code.
+func Unmarshal(data []byte, v any) error {
+	dec := NewDecoder(bytes.NewReader(data))
+	return dec.Decode(v)
+}
+
 type Decoder struct {
-	buf       []byte
-	rd        *bufio.Reader
-	atomCache *intern.Intern
-	// todo: mu        sync.Mutex
+	r io.Reader
+
+	scan *scanner
+
+	cache *intern.Intern
+
+	err error
+
+	dirty bool
 }
 
-func NewDecoder(b []byte) *Decoder {
-	return &Decoder{
-		buf:       b,
-		rd:        bufio.NewReaderSize(bytes.NewReader(b), len(b)),
-		atomCache: intern.New(2048),
+func NewDecoder(r io.Reader) *Decoder {
+	return &Decoder{r: r}
+}
+
+func (d *Decoder) Decode(v any) error {
+	if d.err != nil {
+		return d.err
+	}
+
+	d.init()
+	return d.decode(v)
+}
+
+func (d *Decoder) init() {
+	if d.cache == nil {
+		d.cache = intern.New(2048)
+	}
+
+	if d.scan == nil {
+		d.scan = newScanner(d.r)
 	}
 }
 
-// Decode reads the next ETF-encoded value from its input and stores it in the value pointed to by v.
-func (dec *Decoder) Decode(v any) error {
-	if v == nil {
-		return ErrNilDecodeValue
-	}
-
-	return dec.decode(v)
-}
-
-// DecodePacket reads the next ETF-encoded packet and stores it in the value pointed to by v.
-func (dec *Decoder) DecodePacket(packet []byte, v any) error {
-	dec.rd.Reset(bytes.NewReader(packet))
-	dec.buf = packet
-	return dec.decode(v)
-}
-
-func (dec *Decoder) decode(v any) error {
-	if dec.rd.Size() == 0 {
-		return ErrMalformed
-	}
-
-	var err error
-	var b byte
-
-	b, err = dec.rd.ReadByte()
-	if err != nil {
-		return ErrMalformed
-	}
-
-	if b != EtVersion {
-		return ErrMalformed
-	}
-
-	for {
-		b, err = dec.rd.ReadByte()
-		if err != nil && err != io.EOF {
-			return err
-		}
-
-		if err == io.EOF {
-			return nil
-		}
-
-		if !IsValidEtt(b) {
-			return ErrMalformed
-		}
-
-		flag := ExternalTagType(b)
-		err = dec.decodeStatic(flag, v)
+func (d *Decoder) decode(v any) error {
+	// if the buffer is not dirty check for the version number
+	if !d.dirty {
+		ver, err := d.scan.readByte()
 		if err != nil {
 			return err
 		}
-	}
-}
 
-func (dec *Decoder) decodeStruct(src reflect.Value, key, value any) error {
-	strutcs := src.Elem()
-	typ := src.Elem().Type()
-	for i := 0; i < strutcs.NumField(); i++ {
-		fieldValue := strutcs.Field(i)
-		fieldName := typ.Field(i)
-		fieldTag := fieldName.Tag.Get("etf")
-
-		k, ok := key.(string)
-		if !ok {
+		if ver != Version {
 			return ErrMalformed
 		}
 
-		if k == fieldTag {
-			fieldValue.Set(valueOf(value))
+		d.dirty = true
+	}
+
+	for !d.scan.eof() {
+		elem, err := d.readNext()
+		if err != nil {
+			return err
+		}
+
+		parsed := d.decodeValue(elem, v)
+		parsedOf := valueOf(parsed)
+		vOf := derefValueOf(v)
+		if vOf.Type().Kind() == reflect.Map && parsedOf.Type().Kind() == reflect.Map {
+			keys := parsedOf.MapKeys()
+			for _, key := range keys {
+				value := parsedOf.MapIndex(key)
+				vOf.SetMapIndex(key, value)
+			}
+		} else {
+			if vOf.Type().Kind() != reflect.Struct {
+				vOf.Set(valueOf(parsed))
+			}
 		}
 	}
 
 	return nil
 }
 
-func (dec *Decoder) decodeStatic(tag ExternalTagType, v any) error {
-	vOf := reflect.ValueOf(v)
+func (d *Decoder) readNext() (*binaryElement, error) {
+	typeTag, err := d.scan.readByte()
+	if err != nil {
+		return nil, ErrMalformed
+	}
 
-	switch tag {
-	case EttAtom, EttAtomUTF8:
-		_, b, err := dec.readAtomUTF8()
+	dst := newBinaryElement(typeTag, nil)
+	switch typeTag {
+	default:
+		_, data, err := d.readStaticType(typeTag)
 		if err != nil {
-			return err
+			return nil, err
+		}
+		dst.put(typeTag, data)
+
+	case EttSmallTuple:
+		bArity, err := d.scan.readByte()
+		if err != nil {
+			return nil, ErrMalformedSmallTuple
 		}
 
-		s := dec.parseString(b)
-		switch v := v.(type) {
-		case *string:
-			(*v) = dec.atomCache.Deduplicate(s)
+		arity := int(bArity)
+		if arity == 0 {
+			return nil, ErrMalformedSmallTuple
+		}
 
-		case *bool:
-			if s == "true" {
-				(*v) = true
-			} else {
-				(*v) = false
+		for range arity {
+			elem, err := d.readNext()
+			if err != nil {
+				return nil, err
 			}
+
+			dst.append(typeTag, elem)
 		}
 
-	case EttSmallAtom, EttSmallAtomUTF8:
-		_, b, err := dec.readSmallAtomUTF8()
+	case EttLargeTuple:
+		_, bArity, err := d.scan.readN(SizeLargeTupleArity)
 		if err != nil {
-			return err
+			return nil, ErrMalformedLargeTuple
 		}
 
-		ptr, ok := (v).(*string)
-		if !ok {
-			return ErrDecodeType
+		arity := int(binary.BigEndian.Uint32(bArity))
+		if arity == 0 {
+			return nil, ErrMalformedLargeTuple
 		}
 
-		s := dec.parseString(b)
-		(*ptr) = dec.atomCache.Deduplicate(s)
+		for range arity {
+			elem, err := d.readNext()
+			if err != nil {
+				return nil, err
+			}
 
-	case EttString:
-		_, b, err := dec.readString()
+			dst.append(typeTag, elem)
+		}
+
+	case EttList:
+		_, bLen, err := d.scan.readN(SizeListLength)
 		if err != nil {
-			return err
+			return nil, ErrMalformedList
 		}
 
-		switch v := v.(type) {
-		case *string:
-			(*v) = dec.parseString(b)
-
-		default:
-			return ErrDecodeType
+		length := int(binary.BigEndian.Uint32(bLen))
+		if length == 0 {
+			return nil, ErrMalformedList
 		}
 
-	case EttSmallInteger:
-		_, b, err := dec.readSmallInteger()
+		for range length + 1 {
+			elem, err := d.readNext()
+			if err != nil {
+				return nil, err
+			}
+
+			dst.append(typeTag, elem)
+		}
+
+	case EttMap:
+		_, bArity, err := d.scan.readN(SizeMapArity)
 		if err != nil {
-			return err
+			return nil, ErrMalformedMap
 		}
 
-		switch v := v.(type) {
-		case *uint8:
-			(*v) = dec.parseSmallInteger(b)
-
-		case *uint:
-			(*v) = uint(dec.parseSmallInteger(b))
-
-		case *int:
-			(*v) = int(dec.parseSmallInteger(b))
-
-		default:
-			return ErrDecodeType
+		arity := int(binary.BigEndian.Uint32(bArity))
+		if arity == 0 {
+			return nil, ErrMalformedMap
 		}
 
-	case EttInteger:
-		_, b, err := dec.readInteger()
-		if err != nil {
-			return err
+		for range arity {
+			keyElem, err := d.readNext()
+			if err != nil {
+				return nil, ErrMalformedMap
+			}
+
+			valElem, err := d.readNext()
+			if err != nil {
+				return nil, ErrMalformedMap
+			}
+
+			dst.append(typeTag, keyElem)
+			dst.append(typeTag, valElem)
+		}
+	}
+
+	return dst, nil
+}
+
+func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
+	vOf := derefValueOf(v)
+	kind := vOf.Type().Kind()
+
+	switch elem.tag {
+	default:
+		parsed := d.parseStaticType(vOf.Type().Kind(), elem.tag, elem.body)
+		vOf.Set(valueOf(parsed))
+		return parsed
+
+	case EttSmallTuple, EttLargeTuple:
+		if len(elem.items) > 0 && (kind == reflect.Slice) {
+			fmt.Println(elem)
+			tuple := reflect.MakeSlice(vOf.Type(), len(elem.items), len(elem.items))
+			for i, item := range elem.items {
+				d.decodeValue(item, tuple.Index(i))
+			}
+
+			fmt.Println(tuple)
+			return tuple
 		}
 
-		switch v := v.(type) {
-		case *int32:
-			(*v) = dec.parseInteger(b)
+	case EttList:
+		if len(elem.items) > 0 && (kind == reflect.Array) {
+			arrType := reflect.ArrayOf(len(elem.items)-1, derefValueOf(vOf).Type().Elem())
+			arr := derefValueOf(reflect.New(arrType))
 
-		case *int:
-			(*v) = int(dec.parseInteger(b))
+			for i, item := range elem.items {
+				if item.tag != EttNil {
+					d.decodeValue(item, derefValueOf(arr).Index(i))
+				}
+			}
 
-		default:
-			return ErrDecodeType
+			return arr
 		}
 
-	case EttFloat:
-		_, b, err := dec.readFloat()
-		if err != nil {
-			return err
-		}
+	case EttMap:
+		if len(elem.dict) > 0 && (kind == reflect.Map || kind == reflect.Struct) {
+			if kind == reflect.Map {
+				mapType := reflect.MapOf(vOf.Type().Key(), vOf.Type().Elem())
+				m := reflect.MakeMap(mapType)
 
-		switch v := v.(type) {
-		case *float64:
-			(*v) = dec.parseFloat(b)
+				for i := 0; i < len(elem.dict)-1; i += 2 {
+					keyElem := elem.dict[i]
+					valElem := elem.dict[i+1]
 
-		case *float32:
-			(*v) = float32(dec.parseNewFloat(b))
+					keyOf := derefValueOf(reflect.New(vOf.Type().Key()))
+					d.decodeValue(keyElem, keyOf)
 
-		default:
-			return ErrDecodeType
-		}
+					valOf := derefValueOf(reflect.New(vOf.Type().Elem()))
+					d.decodeValue(valElem, valOf)
 
-	case EttNewFloat:
-		_, b, err := dec.readNewFloat()
-		if err != nil {
-			return err
-		}
+					m.SetMapIndex(keyOf, valOf)
+				}
 
-		switch v := v.(type) {
-		case *float64:
-			(*v) = dec.parseNewFloat(b)
+				return m
+			}
 
-		case *float32:
-			(*v) = float32(dec.parseNewFloat(b))
+			if kind == reflect.Struct {
+				fields := map[string]reflect.Value{}
+				for i := 0; i < vOf.NumField(); i++ {
+					fieldTag := vOf.Type().Field(i).Tag.Get("etf")
+					if fieldTag != "" {
+						fields[fieldTag] = vOf.Field(i)
+					}
+				}
 
-		default:
-			return ErrDecodeType
-		}
+				str := ""
+				for i := 0; i < len(elem.dict)-1; i += 2 {
+					keyElem := elem.dict[i]
 
-	case EttSmallBig:
-		_, b, err := dec.readSmallBig()
-		if err != nil {
-			return err
-		}
+					keyOf := derefValueOf(valueOf(&str))
+					d.decodeValue(keyElem, keyOf)
 
-		switch v := v.(type) {
-		case *int64:
-			(*v) = dec.parseSmallBig(b)
+					etfTag := keyOf.String()
+					if field, ok := fields[etfTag]; ok {
+						valElem := elem.dict[i+1]
 
-		case *int:
-			(*v) = int(dec.parseSmallBig(b))
+						valOf := derefValueOf(field)
+						valParsed := d.decodeValue(valElem, valOf)
 
-		default:
-			return ErrDecodeType
-		}
-
-	case EttLargeBig:
-		_, b, err := dec.readLargeBig()
-		if err != nil {
-			return err
-		}
-
-		switch v := v.(type) {
-		case *int64:
-			(*v) = dec.parseLargeBig(b)
-
-		case *int:
-			(*v) = int(dec.parseLargeBig(b))
-
-		default:
-			return ErrDecodeType
-		}
-
-	case EttBinary:
-		_, b, err := dec.readBinary()
-		if err != nil {
-			return err
-		}
-
-		switch v := v.(type) {
-		case *[]byte:
-			(*v) = b
-
-		case []byte:
-			copy(v, b)
-
-		default:
-			return ErrDecodeType
-		}
-
-	case EttBitBinary:
-		_, b, err := dec.readBitBinary()
-		if err != nil {
-			return err
-		}
-
-		switch v := v.(type) {
-		case *[]byte:
-			(*v) = b
-
-		default:
-			return ErrDecodeType
-		}
-
-	case EttSmallTuple, EttLargeTuple, EttList, EttMap:
-		if err := dec.decodeVariadicType(vOf, tag); err != nil {
-			return err
+						field.Set(valueOf(valParsed))
+					}
+				}
+			}
 		}
 	}
 

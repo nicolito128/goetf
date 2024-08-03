@@ -1,7 +1,7 @@
 package goetf
 
 // SizeType refers to the length in bytes associated with an fixed external term type.
-type SizeType int
+type SizeType = int
 
 // ETF fixed type sizes.
 const (

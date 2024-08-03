@@ -5,7 +5,7 @@ import (
 	"hash/crc32"
 )
 
-var CRC32Q = crc32.MakeTable(0xD5828281)
+var crc32q = crc32.MakeTable(0xD5828281)
 
 // Term is a piece of data of any data type.
 //
@@ -72,7 +72,7 @@ func (p Pid) String() string {
 
 	n := uint32(0)
 	if p.Node != "" {
-		n = crc32.Checksum([]byte(p.Node), CRC32Q)
+		n = crc32.Checksum([]byte(p.Node), crc32q)
 	}
 	return fmt.Sprintf("<%08X.%d.%d>", n, int32(p.ID>>32), int32(p.ID))
 }
@@ -98,7 +98,7 @@ type Ref struct {
 func (r Ref) String() string {
 	n := uint32(0)
 	if r.Node != "" {
-		n = crc32.Checksum([]byte(r.Node), CRC32Q)
+		n = crc32.Checksum([]byte(r.Node), crc32q)
 	}
 	return fmt.Sprintf("Ref#<%08X.%d.%d.%d>", n, r.ID[0], r.ID[1], r.ID[2])
 }
@@ -129,14 +129,4 @@ type Export struct {
 type KV struct {
 	Key   Atom
 	Value Term
-}
-
-// Marshaler interface implemented by types that can marshal themselves into valid ETF binary.
-type Marshaler interface {
-	MarshalETF() ([]byte, error)
-}
-
-// Unmarshaler interface implemented by types that can unmarshal an ETF binary of themselves.
-type Unmarshaler interface {
-	UnmarshalETF([]byte) error
 }
