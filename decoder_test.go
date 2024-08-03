@@ -173,6 +173,19 @@ func TestDecodeTuple(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
+	{ // any tuple
+		b := []byte{131, 104, 3, 70, 63, 240, 0, 0, 0, 0, 0, 0, 98, 0, 0, 3, 231, 107, 0, 3, 116, 119, 111}
+
+		out := make([]any, 0)
+		if err := Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		want := []any{1.0, 999, "two"}
+		if len(want) != len(out) {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
 }
 
 func TestDecodeList(t *testing.T) {

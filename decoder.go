@@ -216,27 +216,41 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 		}
 
 	case EttSmallTuple, EttLargeTuple:
-		if len(elem.items) > 0 && (kind == reflect.Slice) {
-			tuple := reflect.MakeSlice(vOf.Type(), len(elem.items), len(elem.items))
-			for i, item := range elem.items {
-				d.decodeValue(item, tuple.Index(i))
+		if len(elem.items) > 0 {
+			if kind == reflect.Slice {
+				tuple := reflect.MakeSlice(vOf.Type(), len(elem.items), len(elem.items))
+				for i, item := range elem.items {
+					d.decodeValue(item, tuple.Index(i))
+				}
+
+				return tuple
 			}
 
-			return tuple
+			if kind == reflect.Interface {
+				tuple := make([]any, len(elem.items))
+				tupleOf := valueOf(tuple)
+				for i, item := range elem.items {
+					d.decodeValue(item, tupleOf.Index(i))
+				}
+
+				return tuple
+			}
 		}
 
 	case EttList:
-		if len(elem.items) > 0 && (kind == reflect.Array) {
-			arrType := reflect.ArrayOf(len(elem.items)-1, derefValueOf(vOf).Type().Elem())
-			arr := derefValueOf(reflect.New(arrType))
+		if len(elem.items) > 0 {
+			if kind == reflect.Array {
+				arrType := reflect.ArrayOf(len(elem.items)-1, derefValueOf(vOf).Type().Elem())
+				arr := derefValueOf(reflect.New(arrType))
 
-			for i, item := range elem.items {
-				if item.tag != EttNil {
-					d.decodeValue(item, derefValueOf(arr).Index(i))
+				for i, item := range elem.items {
+					if item.tag != EttNil {
+						d.decodeValue(item, derefValueOf(arr).Index(i))
+					}
 				}
-			}
 
-			return arr
+				return arr
+			}
 		}
 
 	case EttMap:
