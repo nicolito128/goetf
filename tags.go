@@ -1,13 +1,13 @@
 package goetf
 
 const (
-	// Erlang external term format version.
-	EtVersion = byte(131)
-	// Erlang distribution header.
-	EtDistHeader = byte(68)
+	// Erlang external term format version
+	Version = byte(131)
+	// Erlang distribution header
+	DistHeader = byte(68)
 )
 
-type ExternalTagType byte
+type ExternalTagType = byte
 
 // Erlang external term tags.
 const (
@@ -59,10 +59,6 @@ const (
 	EttSmallAtom ExternalTagType = (115) // deprecated
 )
 
-func (ett ExternalTagType) Byte() byte {
-	return byte(ett)
-}
-
 var tagNames = map[ExternalTagType]string{
 	EttAtom:          "ATOM_EXT",
 	EttAtomUTF8:      "ATOM_UTF8_EXT",
@@ -103,6 +99,5 @@ func TagString(ett ExternalTagType) string {
 }
 
 func IsValidEtt(b byte) bool {
-	tag := TagString(ExternalTagType(b))
-	return tag != ""
+	return TagString(b) != ""
 }
