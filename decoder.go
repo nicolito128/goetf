@@ -3,7 +3,6 @@ package goetf
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"reflect"
 
@@ -207,13 +206,11 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 
 	case EttSmallTuple, EttLargeTuple:
 		if len(elem.items) > 0 && (kind == reflect.Slice) {
-			fmt.Println(elem)
 			tuple := reflect.MakeSlice(vOf.Type(), len(elem.items), len(elem.items))
 			for i, item := range elem.items {
 				d.decodeValue(item, tuple.Index(i))
 			}
 
-			fmt.Println(tuple)
 			return tuple
 		}
 

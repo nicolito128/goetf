@@ -140,8 +140,8 @@ func (d *Decoder) parseFloat(b []byte) float64 {
 }
 
 func (d *Decoder) parseSmallBig(b []byte) int64 {
-	sign := b[len(b)-1]
-	rest := b[:len(b)-1]
+	sign := b[0]
+	rest := b[1:]
 
 	bits := binary.LittleEndian.Uint64(rest)
 	smallBig := int64(bits)
@@ -154,8 +154,8 @@ func (d *Decoder) parseSmallBig(b []byte) int64 {
 }
 
 func (d *Decoder) parseLargeBig(b []byte) int64 {
-	sign := b[len(b)-1]
-	rest := b[:len(b)-1]
+	sign := b[0]
+	rest := b[1:]
 
 	bits := binary.LittleEndian.Uint64(rest)
 	largeBig := int64(bits)

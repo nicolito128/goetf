@@ -2,6 +2,7 @@ package goetf
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // readType reads a specific tag type from the underlying buffer,
@@ -115,23 +116,27 @@ func (d *Decoder) readLargeBig() (int, []byte, error) {
 	}
 	N := int(binary.BigEndian.Uint32(bN))
 
-	// fill with 0 to allow parsing
-	if N < 8 {
-		N += 8 - N
-	}
-
 	sign, err := d.scan.readByte()
 	if err != nil {
 		return n, nil, ErrMalformedLargeBig
 	}
 
-	n, data, err := d.scan.readN(N + 1) // N+1 to store internaly the sign
+	n, data, err := d.scan.readN(N) // N+1 to store internaly the sign
 	if err != nil {
 		return n, data, ErrMalformedSmallBig
 	}
-	data[N] = sign // positive or negative at N
 
-	return n, data, nil
+	if N < 8 {
+		N += 8 - N
+	}
+
+	largeBig := make([]byte, N+1)
+	largeBig[0] = sign
+	copy(largeBig[1:], data)
+
+	fmt.Println(largeBig)
+
+	return len(largeBig) - 1, largeBig, nil
 }
 
 func (d *Decoder) readSmallBig() (int, []byte, error) {
@@ -149,17 +154,20 @@ func (d *Decoder) readSmallBig() (int, []byte, error) {
 	}
 
 	// fill with 0 to allow parsing
+	n, data, err := d.scan.readN(N) // N+1 to store internaly the sign
+	if err != nil {
+		return n, data, ErrMalformedSmallBig
+	}
+
 	if N < 8 {
 		N += 8 - N
 	}
 
-	n, data, err := d.scan.readN(N + 1) // N+1 to store internaly the sign
-	if err != nil {
-		return n, data, ErrMalformedSmallBig
-	}
-	data[N] = sign // positivo or negative
+	smallBig := make([]byte, N+1)
+	smallBig[0] = sign
+	copy(smallBig[1:], data)
 
-	return N + 1, data, nil
+	return len(smallBig) - 1, smallBig, nil
 }
 
 func (d *Decoder) readBinary() (int, []byte, error) {
