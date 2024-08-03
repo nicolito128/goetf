@@ -389,9 +389,10 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 				fields := map[string]reflect.Value{}
 				for i := 0; i < vOf.NumField(); i++ {
 					fieldTag := vOf.Type().Field(i).Tag.Get("etf")
-					if fieldTag != "" {
-						fields[fieldTag] = vOf.Field(i)
+					if fieldTag == "" {
+						fieldTag = vOf.Type().Field(i).Name
 					}
+					fields[fieldTag] = vOf.Field(i)
 				}
 
 				str := ""
@@ -402,16 +403,34 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 					d.decodeValue(keyElem, keyOf)
 
 					etfTag := keyOf.String()
+					var fieldType reflect.Type
+
 					if field, ok := fields[etfTag]; ok {
+						if field.Type().Kind() == reflect.Pointer {
+							fieldType = field.Type().Elem()
+						} else {
+							fieldType = field.Type()
+						}
 						valElem := elem.dict[i+1]
 
-						valOf := derefValueOf(field)
+						valOf := derefValueOf(reflect.New(fieldType))
 						valParsed := d.decodeValue(valElem, valOf)
 
 						if valParsed != nil {
-							field.Set(valueOf(valParsed))
+							parsedOf := valueOf(valParsed)
+							if field.Type().Kind() == reflect.Pointer {
+								field.Set(parsedOf.Addr())
+							} else {
+								field.Set(parsedOf)
+							}
 						} else {
-							field.Set(derefValueOf(valOf))
+							if valOf.IsValid() {
+								if field.Type().Kind() == reflect.Pointer {
+									field.Set(valOf.Addr())
+								} else {
+									field.Set(valOf)
+								}
+							}
 						}
 					}
 				}

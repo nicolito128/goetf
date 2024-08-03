@@ -349,4 +349,31 @@ func TestDecodeStruct(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
+	{
+		type Activity struct {
+			Online bool    `etf:"online"`
+			Wallet float64 `etf:"wallet"`
+		}
+
+		type Client struct {
+			Status *Activity `etf:"status"`
+		}
+
+		b := []byte{
+			131, 116, 0, 0, 0, 1, 119, 6, 115, 116, 97, 116, 117, 115, 116, 0, 0, 0,
+			2, 119, 6, 111, 110, 108, 105, 110, 101, 119, 4, 116, 114, 117, 101,
+			119, 6, 119, 97, 108, 108, 101, 116, 70, 64, 129, 81, 215, 10, 61, 112,
+			164,
+		}
+
+		var out Client
+		if err := Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		want := Client{Status: &Activity{true, 554.23}}
+		if want.Status.Online != out.Status.Online || want.Status.Wallet != out.Status.Wallet {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
 }
