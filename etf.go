@@ -5,6 +5,65 @@ import (
 	"hash/crc32"
 )
 
+const (
+	// Erlang external term format version
+	Version = byte(131)
+	// Erlang distribution header
+	DistHeader = byte(68)
+)
+
+type ExternalTagType = byte
+
+// Erlang external term tags.
+const (
+	EttAtomCacheRef ExternalTagType = 82
+
+	EttAtomUTF8      ExternalTagType = (118)
+	EttSmallAtomUTF8 ExternalTagType = (119)
+
+	EttSmallInteger ExternalTagType = (97)
+	EttInteger      ExternalTagType = (98)
+	EttSmallBig     ExternalTagType = (110)
+	EttLargeBig     ExternalTagType = (111)
+
+	EttNewFloat ExternalTagType = (70)
+	EttFloat    ExternalTagType = (99)
+
+	EttNewPort ExternalTagType = (89)
+	EttPort    ExternalTagType = (102) // since OTP 23, only when BIG_CREATION flag is set
+
+	EttV4Port ExternalTagType = (120)
+
+	EttSmallTuple ExternalTagType = (104)
+	EttLargeTuple ExternalTagType = (105)
+
+	EttMap ExternalTagType = (116) // 116 Arity Pairs | K1,V1,K2,V2,...
+
+	EttNil ExternalTagType = (106) // Empyu list: []
+
+	EttListImproper ExternalTagType = (18)  // to be able to encode improper lists like [a|b]
+	EttString       ExternalTagType = (107) // used for lists with integers in the range 0..255
+	EttList         ExternalTagType = (108)
+
+	EttBitBinary ExternalTagType = (77)
+	EttBinary    ExternalTagType = (109)
+
+	EttNewPid         ExternalTagType = (88) // since OTP 23, only when BIG_CREATION flag is set
+	EttNewerReference ExternalTagType = (90) // since OTP 21, only when BIG_CREATION flag is set
+	EttPid            ExternalTagType = (103)
+	EttNewReference   ExternalTagType = (114)
+
+	EttNewFun ExternalTagType = (112)
+	EttExport ExternalTagType = (113)
+	EttFun    ExternalTagType = (117) // legacy
+
+	EttLocal ExternalTagType = (121) // OTP 26.0
+
+	EttAtom      ExternalTagType = (100) // deprecated
+	EttRef       ExternalTagType = (101) // deprecated
+	EttSmallAtom ExternalTagType = (115) // deprecated
+)
+
 var crc32q = crc32.MakeTable(0xD5828281)
 
 // Term is a piece of data of any data type.
