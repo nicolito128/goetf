@@ -1,7 +1,6 @@
 package goetf
 
 import (
-	"fmt"
 	"maps"
 	"math/big"
 	"slices"
@@ -85,7 +84,6 @@ func TestDecodeBig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fmt.Println(b)
 		out := big.NewInt(0)
 		if err := Unmarshal(b, out); err != nil {
 			t.Fatal(err)
