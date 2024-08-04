@@ -230,15 +230,13 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 	switch elem.tag {
 	default:
 		parsed := d.parseStaticType(kind, elem.tag, elem.body)
-
 		if v != nil {
 			parsedOf := derefValueOf(parsed)
 			if parsedOf.IsValid() {
 				vOf.Set(parsedOf)
 			}
-
-			return parsed
 		}
+		return parsed
 
 	case EttSmallTuple, EttLargeTuple:
 		if len(elem.items) > 0 {
@@ -290,16 +288,17 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 				var arrOfPtrs bool
 
 				if elemTyp := vOf.Type(); elemTyp.Kind() == reflect.Pointer {
-					arrType = reflect.ArrayOf(len(elem.items), elemTyp.Elem())
+					arrType = reflect.ArrayOf(len(elem.items)-1, elemTyp.Elem())
 					arrOfPtrs = true
 				} else {
-					arrType = reflect.ArrayOf(len(elem.items), vOf.Type())
+					arrType = reflect.ArrayOf(len(elem.items)-1, vOf.Type())
 				}
 
 				arr := derefValueOf(reflect.New(arrType))
 				for i, item := range elem.items {
-					if item.tag != EttNil {
-						d.decodeValue(item, (arr).Index(i))
+					if i < len(elem.items)-1 {
+						arrElem := (arr).Index(i)
+						d.decodeValue(item, arrElem)
 					}
 				}
 
@@ -355,10 +354,19 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 					val := d.decodeValue(valElem, valOf)
 
 					if val != nil && key != nil {
-						m.SetMapIndex(valueOf(key), valueOf(val))
+						m.SetMapIndex(derefValueOf(key), derefValueOf(val))
 					} else {
 						if valOf.CanAddr() {
-							m.SetMapIndex(keyOf, valOf.Addr())
+							if valOf.Type().Kind() == reflect.Struct {
+								m.SetMapIndex(keyOf, valOf.Addr())
+							} else {
+								if valOf.Type().Kind() == reflect.Pointer && valOf.IsNil() {
+									m.SetMapIndex(keyOf, derefValueOf(valOf))
+								} else {
+									m.SetMapIndex(keyOf, valOf)
+
+								}
+							}
 						} else {
 							m.SetMapIndex(valueOf(keyOf), valueOf(valOf))
 						}
@@ -383,7 +391,7 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 					val := d.decodeValue(valElem, valOf)
 
 					if val != nil && key != nil {
-						mapOf.SetMapIndex(valueOf(key), derefValueOf(val))
+						mapOf.SetMapIndex(derefValueOf(key), derefValueOf(val))
 					} else {
 						mapOf.SetMapIndex(derefValueOf(keyOf), derefValueOf(valOf))
 					}
