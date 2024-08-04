@@ -226,7 +226,7 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 		parsed := d.parseStaticType(kind, elem.tag, elem.body)
 
 		if v != nil {
-			parsedOf := valueOf(parsed)
+			parsedOf := derefValueOf(parsed)
 			if parsedOf.IsValid() {
 				vOf.Set(parsedOf)
 			}

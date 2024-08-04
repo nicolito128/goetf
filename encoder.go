@@ -122,7 +122,7 @@ func (e *Encoder) parseType(src reflect.Value) error {
 
 		var tag ExternalTagType
 
-		if len(data) <= 255 && isValidUTF8 {
+		if len(data) <= 16 && isValidUTF8 {
 			blen = binary.BigEndian.AppendUint16(blen, uint16(len(data)))[1:]
 			tag = EttSmallAtomUTF8
 		} else {
