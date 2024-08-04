@@ -6,7 +6,7 @@
 Go encoding module for ETF (External Term Format).
 
 ## Why GoETF?
-The external term format is primarily used in Erlang's distribution mechanism. Sometimes, it's necessary to work with the encoding and decoding of this specific binary format, which is used for communication between different APIs. This format has the advantage of being faster and lighter than conventional JSON.
+The external term format is mainly used in Erlang's distribution system. Occasionally, it's necessary to encode and decode this particular binary format for communication between different APIs. This format offers the advantage of being faster and more lightweight compared to traditional JSON.
 
 ## Getting started
 
