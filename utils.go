@@ -27,6 +27,13 @@ func derefValueOf(v any) reflect.Value {
 	return vOf
 }
 
+func toLittleEndian(b []byte) {
+	for i := 0; i < len(b)/2; i++ {
+		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
+	}
+}
+
+// TagString returns the string representation for an external format tag.
 func TagString(ett ExternalTagType) string {
 	if tag, ok := tagNames[ett]; ok {
 		return tag
@@ -35,6 +42,7 @@ func TagString(ett ExternalTagType) string {
 	return ""
 }
 
+// IsValidEtt validates whether the byte argument is an external format flag.
 func IsValidEtt(b byte) bool {
 	return TagString(b) != ""
 }
@@ -68,10 +76,4 @@ var tagNames = map[ExternalTagType]string{
 	EttString:        "STRING_EXT",
 	EttV4Port:        "V4_PORT_EXT",
 	EttLocal:         "LOCAL_EXT",
-}
-
-func toLittleEndian(b []byte) {
-	for i := 0; i < len(b)/2; i++ {
-		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
-	}
 }

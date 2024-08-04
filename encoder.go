@@ -17,10 +17,12 @@ var (
 	typeOfBigInt = reflect.TypeOf(*big.NewInt(0))
 )
 
+// Marshaler is the interface implemented by types that can marshal themselves into valid ETF.
 type Marshaler interface {
-	MarshalETF(data []byte, dst any) (err error)
+	MarshalETF(data []byte, src any) (err error)
 }
 
+// Marshal returns the ETF encoding of v.
 func Marshal(v any) ([]byte, error) {
 	en := NewEncoder(bytes.NewBuffer(make([]byte, 0)))
 	if err := en.Encode(v); err != nil {
@@ -36,10 +38,12 @@ type Encoder struct {
 	stream *streamer
 }
 
+// NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{w: w}
 }
 
+// Encode writes the ETF encoding of v to the stream.
 func (e *Encoder) Encode(v any) error {
 	e.init()
 	return e.encode(v)
@@ -63,6 +67,7 @@ func (e *Encoder) encode(v any) error {
 	return nil
 }
 
+// parseType parses the reflected value of src and writes its representation in bytes.
 func (e *Encoder) parseType(src reflect.Value) error {
 	kind := src.Type().Kind()
 	switch kind {
