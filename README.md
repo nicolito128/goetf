@@ -16,7 +16,7 @@ The external term format is mainly used in Erlang's distribution system. Occasio
 
 ### Installation
 
-    go get github.com/nicolito128/goetf
+    go get -u github.com/nicolito128/goetf
 
 ### Encoding example
 
@@ -63,6 +63,14 @@ func main() {
 	fmt.Println("Out:", out)
 }
 ```
+
+For both examples, use the `go run` command, like:
+
+	go run example_file.go
+
+### See more examples
+
+**Encode/decode structs**: Learn more [in this example](./examples/structs/main.go)
 
 ## References
 
