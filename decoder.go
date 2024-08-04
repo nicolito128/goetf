@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"math/big"
 	"reflect"
 
 	"github.com/philpearl/intern"
@@ -386,6 +387,11 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 			}
 
 			if kind == reflect.Struct {
+				if vOf.Type() == typeOfBigInt {
+					num := vOf.Interface().(big.Int)
+					return num
+				}
+
 				fields := map[string]reflect.Value{}
 				for i := 0; i < vOf.NumField(); i++ {
 					fieldTag := vOf.Type().Field(i).Tag.Get("etf")

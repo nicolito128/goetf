@@ -1,7 +1,9 @@
 package goetf
 
 import (
+	"fmt"
 	"maps"
+	"math/big"
 	"slices"
 	"testing"
 )
@@ -57,21 +59,41 @@ func TestDecodeSmallBig(t *testing.T) {
 	}
 }
 
-func TestDecodeLargeBig(t *testing.T) {
-	var want int64 = 27182818284590
+func TestDecodeBig(t *testing.T) {
+	{
+		var want int64 = 27182818284590
 
-	b, err := Marshal(want)
-	if err != nil {
-		t.Fatal(err)
+		b, err := Marshal(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var out int64
+		if err := Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		if want != out {
+			t.Errorf("want = %v, got = %v", want, out)
+		}
 	}
+	{
+		want := big.NewInt(314159265359)
 
-	var out int64
-	if err := Unmarshal(b, &out); err != nil {
-		t.Fatal(err)
-	}
+		b, err := Marshal(want)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if want != out {
-		t.Errorf("want = %v, got = %v", want, out)
+		fmt.Println(b)
+		out := big.NewInt(0)
+		if err := Unmarshal(b, out); err != nil {
+			t.Fatal(err)
+		}
+
+		if want.Cmp(out) != 0 {
+			t.Errorf("want = %v, got = %v", want, out)
+		}
 	}
 }
 

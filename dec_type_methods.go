@@ -3,6 +3,7 @@ package goetf
 import (
 	"encoding/binary"
 	"math"
+	"math/big"
 	"reflect"
 )
 
@@ -87,8 +88,8 @@ func (d *Decoder) parseStaticType(kind reflect.Kind, tag ExternalTagType, data [
 		switch kind {
 		default:
 			return d.parseLargeBig(data)
-		case reflect.Int:
-			return int(d.parseLargeBig(data))
+		case reflect.Int, reflect.Int64:
+			return d.parseLargeBig(data).Int64()
 		}
 
 	case EttBinary:
@@ -150,7 +151,7 @@ func (d *Decoder) parseSmallBig(b []byte) int64 {
 	return smallBig
 }
 
-func (d *Decoder) parseLargeBig(b []byte) int64 {
+func (d *Decoder) parseLargeBig(b []byte) *big.Int {
 	sign := b[0]
 	rest := b[1:]
 
@@ -161,7 +162,7 @@ func (d *Decoder) parseLargeBig(b []byte) int64 {
 		largeBig *= -1
 	}
 
-	return largeBig
+	return big.NewInt(largeBig)
 }
 
 // readStaticType reads a specific tag type from the underlying buffer,
