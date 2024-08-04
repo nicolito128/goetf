@@ -13,6 +13,15 @@ func valueOf(v any) reflect.Value {
 	}
 }
 
+func typeOf(v any) reflect.Type {
+	switch v := v.(type) {
+	case reflect.Type:
+		return v
+	default:
+		return reflect.TypeOf(v)
+	}
+}
+
 func derefValueOf(v any) reflect.Value {
 	vOf := valueOf(v)
 	if vOf.IsValid() {
@@ -25,6 +34,16 @@ func derefValueOf(v any) reflect.Value {
 	}
 
 	return vOf
+}
+
+func derefTypeOf(v any) reflect.Type {
+	vOf := typeOf(v)
+	switch vOf.Kind() {
+	case reflect.Pointer:
+		return derefTypeOf(vOf.Elem())
+	default:
+		return vOf
+	}
 }
 
 func toLittleEndian(b []byte) {
