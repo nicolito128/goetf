@@ -2,6 +2,7 @@ package goetf
 
 import (
 	"math"
+	"math/big"
 	"slices"
 	"strings"
 	"testing"
@@ -64,16 +65,32 @@ func TestEncodeInteger(t *testing.T) {
 }
 
 func TestEncodeBig(t *testing.T) {
-	var data int64 = 314159265359
+	{
+		var data int64 = 314159265359
 
-	got, err := Marshal(data)
-	if err != nil {
-		t.Fatal(err)
+		got, err := Marshal(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := []byte{131, 110, 8, 0, 79, 246, 89, 37, 73, 0, 0, 0}
+		if !slices.Equal(want, got) {
+			t.Errorf("marshal error: want = %v got = %v", want, got)
+		}
 	}
+	{
+		data := big.NewInt(16777216)
 
-	want := []byte{131, 110, 8, 0, 79, 246, 89, 37, 73, 0, 0, 0}
-	if !slices.Equal(want, got) {
-		t.Errorf("marshal error: want = %v got = %v", want, got)
+		got, err := Marshal(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := []byte{131, 111, 0, 0, 0, 4, 0, 0, 0, 0, 1}
+		if !slices.Equal(want, got) {
+			t.Errorf("marshal error: want = %v got = %v", want, got)
+		}
+
 	}
 }
 
@@ -115,8 +132,8 @@ func TestEncodeString(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		want := []byte{131, 119, 16, 104, 101, 108, 108, 111, 44, 32, 101, 116, 102, 32, 119,
-			111, 114, 108, 100}
+		want := []byte{131, 107, 0, 16, 104, 101, 108, 108, 111, 44, 32, 101, 116, 102, 32,
+			119, 111, 114, 108, 100}
 		if !slices.Equal(want, got) {
 			t.Errorf("marshal error: want = %v got = %v", want, got)
 		}

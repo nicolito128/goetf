@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"reflect"
+	"strings"
 	"unicode/utf8"
 )
 
-var typeOfBytes = reflect.TypeOf([]byte(nil))
+var (
+	typeOfBytes  = reflect.TypeOf([]byte(nil))
+	typeOfBigInt = reflect.TypeOf(*big.NewInt(0))
+)
 
 type Marshaler interface {
 	MarshalETF(data []byte, dst any) (err error)
@@ -63,7 +68,7 @@ func (e *Encoder) parseType(src reflect.Value) error {
 	switch kind {
 	case reflect.Int:
 		integer := src.Int()
-		typ := e.assertIntType(integer)
+		typ := e.assertNumericType(integer)
 		e.parseType(valueOf(typ))
 
 	case reflect.Uint:
@@ -110,19 +115,28 @@ func (e *Encoder) parseType(src reflect.Value) error {
 		}
 		e.writeBytes([]byte{EttSmallBig, byte(len(data)), sign}, data)
 
+	case reflect.Uint64:
+		unsigned := src.Uint()
+		data := binary.LittleEndian.AppendUint64(make([]byte, 0), unsigned)
+		if len(data) > 255 {
+			return fmt.Errorf("parsing int64 error: invalid data size")
+		}
+		e.writeBytes([]byte{EttSmallBig, byte(len(data)), 0}, data)
+
 	case reflect.Float64, reflect.Float32:
 		float := src.Float()
 		data := binary.BigEndian.AppendUint64([]byte{}, math.Float64bits(float))
 		e.writeBytes([]byte{EttNewFloat}, data)
 
 	case reflect.String:
-		data := []byte(src.String())
+		str := src.String()
+		data := []byte(str)
 		isValidUTF8 := utf8.Valid(data)
 		blen := make([]byte, 0)
 
 		var tag ExternalTagType
 
-		if len(data) <= 16 && isValidUTF8 {
+		if len(data) <= 255 && isValidUTF8 && !strings.Contains(str, " ") {
 			blen = binary.BigEndian.AppendUint16(blen, uint16(len(data)))[1:]
 			tag = EttSmallAtomUTF8
 		} else {
@@ -233,6 +247,10 @@ func (e *Encoder) parseType(src reflect.Value) error {
 		}
 
 	case reflect.Struct:
+		if src.Type() == typeOfBigInt {
+			return e.writeLargeBig(src)
+		}
+
 		e.writeByte(EttMap)
 		length := src.NumField()
 
@@ -304,18 +322,37 @@ func (e *Encoder) writeNil() {
 	e.writeBytes([]byte{119, 3, 110, 105, 108})
 }
 
-func (e *Encoder) assertIntType(i int64) any {
+func (e *Encoder) writeLargeBig(src reflect.Value) error {
+	num, ok := src.Interface().(big.Int)
+	if !ok {
+		return fmt.Errorf("encode error: invalid big int number")
+	}
+	bigNum := &num
+	b := bigNum.Bytes()
+
+	e.writeByte(EttLargeBig)
+	e.writeBytes(binary.BigEndian.AppendUint32([]byte{}, uint32(len(b))))
+
+	sign := bigNum.Sign()
+	if sign < 0 {
+		e.writeByte(1)
+	} else {
+		e.writeByte(0)
+	}
+
+	toLittleEndian(b)
+	e.writeBytes(b)
+	return nil
+}
+
+func (e *Encoder) assertNumericType(i int64) any {
 	switch {
 	case 0 < i && i < math.MaxUint8:
 		return uint8(i)
-	case 0 < i && i < math.MaxUint16:
-		return uint16(i)
-	case 0 < i && i < math.MaxUint32:
-		return uint32(i)
 	case math.MinInt16 < i && i < math.MaxInt16:
 		return int16(i)
 	case math.MinInt32 < i && i < math.MaxInt32:
-		return int16(i)
+		return int32(i)
 	default:
 		return i
 	}

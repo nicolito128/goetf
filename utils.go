@@ -69,3 +69,9 @@ var tagNames = map[ExternalTagType]string{
 	EttV4Port:        "V4_PORT_EXT",
 	EttLocal:         "LOCAL_EXT",
 }
+
+func toLittleEndian(b []byte) {
+	for i := 0; i < len(b)/2; i++ {
+		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
+	}
+}
