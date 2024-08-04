@@ -9,10 +9,8 @@ import (
 type scanner struct {
 	// Buffer where readings are stored. Default size is 2048.
 	buf []byte
-
 	// Start of unread data in buf.
 	scanp int
-
 	// Total bytes consumed.
 	scanned int64
 
