@@ -1,4 +1,4 @@
-# GoETF (Work-In-Progress)
+# GoETF
 
 > [!WARNING]
 > The module is not yet at version `1.0.0` so it's not possible to ensure that there will be no breaking changes.
