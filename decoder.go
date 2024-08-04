@@ -288,11 +288,12 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 			if kind == reflect.Interface {
 				var arrType reflect.Type
 				var arrOfPtrs bool
-				if elemTyp := vOf.Type().Elem(); elemTyp.Kind() == reflect.Pointer {
+
+				if elemTyp := vOf.Type(); elemTyp.Kind() == reflect.Pointer {
 					arrType = reflect.ArrayOf(len(elem.items), elemTyp.Elem())
 					arrOfPtrs = true
 				} else {
-					arrType = vOf.Type()
+					arrType = reflect.ArrayOf(len(elem.items), vOf.Type())
 				}
 
 				arr := derefValueOf(reflect.New(arrType))
