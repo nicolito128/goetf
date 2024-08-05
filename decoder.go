@@ -95,13 +95,6 @@ func (d *Decoder) decode(v any) error {
 			return err
 		}
 
-		vOf := valueOf(v)
-		if vOf.IsValid() {
-			if vOf.Type().Kind() == reflect.Pointer && vOf.IsNil() {
-				return nil
-			}
-		}
-
 		parsed := d.decodeValue(elem, v)
 		if parsed != nil {
 			parsedOf := derefValueOf(parsed)
@@ -396,11 +389,9 @@ func (d *Decoder) decodeAnyList(elem *binaryElement, src reflect.Value) any {
 		arrLength = len(elem.items) - 1
 	}
 
-	arrType := reflect.ArrayOf(arrLength, reflect.TypeOf(src.Type()))
-	arr := reflect.New(arrType).Elem()
-
+	arr := reflect.MakeSlice(reflect.SliceOf(src.Type()), arrLength, arrLength)
 	for i := 0; i < arrLength; i++ {
-		arrElem := derefValueOf(arr.Index(i))
+		arrElem := (arr).Index(i)
 		if arrElem.IsValid() {
 			item := elem.items[i]
 
@@ -410,7 +401,6 @@ func (d *Decoder) decodeAnyList(elem *binaryElement, src reflect.Value) any {
 			}
 		}
 	}
-
 	return arr.Interface()
 }
 
@@ -433,7 +423,7 @@ func (d *Decoder) decodeMap(elem *binaryElement, src reflect.Value) any {
 		key := d.decodeValue(keyElem, keyOf)
 
 		valOf := reflect.New(src.Type().Elem()).Elem()
-		value := d.decodeValue(valElem, valueOf)
+		value := d.decodeValue(valElem, valOf)
 
 		if keyOf.IsValid() && valOf.IsValid() {
 			if key != nil && value != nil {
@@ -451,8 +441,7 @@ func (d *Decoder) decodeAnyMap(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() == reflect.Pointer {
 		src = derefValueOf(src)
 	}
-	mType := reflect.MapOf(reflect.TypeOf(""), src.Type())
-	m := reflect.MakeMap(reflect.TypeOf(mType))
+	m := reflect.MakeMap(reflect.TypeOf(map[string]any{}))
 
 	for i := 0; i < len(elem.dict)-1; i += 2 {
 		keyElem := elem.dict[i]
