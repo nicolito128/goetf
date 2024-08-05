@@ -524,11 +524,11 @@ func TestDecodeStruct(t *testing.T) {
 	{
 		type conn struct {
 			Shards *[2]int `etf:"shards"`
-			//Token  *string `etf:"token"`
+			Token  *string `etf:"token"`
 		}
 
-		//token := "12345"
-		want := conn{&[2]int{1, 2}}
+		token := "12345"
+		want := conn{&[2]int{1, 2}, &token}
 		b, err := goetf.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -539,7 +539,41 @@ func TestDecodeStruct(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if want.Shards[0] != out.Shards[0] || want.Shards[1] != out.Shards[1] {
+		if want.Shards[0] != out.Shards[0] ||
+			want.Shards[1] != out.Shards[1] ||
+			*want.Token != *out.Token {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{ // embedded struct
+		type Buz struct {
+			X int `etf:"x"`
+			Y int `etf:"y"`
+		}
+
+		type Bar struct {
+			B string `etf:"b"`
+			C string `etf:"c"`
+			Buz
+		}
+
+		type Foo struct {
+			A string `etf:"a"`
+			Bar
+		}
+
+		want := Foo{"A", Bar{"B", "C", Buz{1, 2}}}
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var out Foo
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		if want.A != out.A || want.B != out.B || want.C != out.C {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}

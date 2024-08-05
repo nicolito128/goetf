@@ -279,24 +279,14 @@ func (e *Encoder) parseType(src reflect.Value) error {
 		}
 
 		e.writeByte(EttMap)
-		length := src.NumField()
+		fields := deepFieldsFrom(src)
+		length := len(fields)
 
 		blen := binary.BigEndian.AppendUint32([]byte{}, uint32(length))
 		e.writeBytes(blen)
 
-		for i := 0; i < length; i++ {
-			name := derefValueOf(src).Type().Field(i).Name
-			field := derefValueOf(src.Field(i))
-			tag := src.Type().Field(i).Tag.Get("etf")
-
-			var key string
-			if tag != "" {
-				key = tag
-			} else {
-				key = name
-			}
-
-			if err := e.parseType(valueOf(key)); err != nil {
+		for name, field := range fields {
+			if err := e.parseType(valueOf(name)); err != nil {
 				return err
 			}
 

@@ -114,6 +114,10 @@ func (d *Decoder) decode(v any) error {
 					return nil
 				}
 
+				if vOf.Type().Kind() == reflect.Struct {
+					return nil
+				}
+
 				vOf.Set(parsedOf)
 			}
 		}
@@ -476,16 +480,17 @@ func (d *Decoder) decodeStruct(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() != reflect.Struct {
 		panic("error trying to decode a no-struct type")
 	}
-	fields := d.parseFieldsFrom(src)
+	fields := deepFieldsFrom(src)
 
-	for i := 0; i < len(elem.dict)-1; i += 2 {
+	str := ""
+	for i := 0; i < len(elem.dict); i += 2 {
 		keyElem := elem.dict[i]
 		valElem := elem.dict[i+1]
 
-		keyOf := reflect.New(reflect.TypeOf("")).Elem()
-		key := d.decodeValue(keyElem, keyOf).(string)
+		keyOf := reflect.New(reflect.TypeOf(str)).Elem()
+		key := d.decodeValue(keyElem, keyOf)
 
-		if field, ok := fields[key]; ok {
+		if field, ok := fields[valueOf(key).String()]; ok {
 			valOf := reflect.New(derefTypeOf(field.Type())).Elem()
 			val := d.decodeValue(valElem, valOf)
 
@@ -516,7 +521,7 @@ func (d *Decoder) decodeStruct(elem *binaryElement, src reflect.Value) any {
 	return src.Interface()
 }
 
-func (d *Decoder) parseFieldsFrom(src reflect.Value) map[string]reflect.Value {
+func deepFieldsFrom(src reflect.Value) map[string]reflect.Value {
 	if src.Type().Kind() != reflect.Struct {
 		panic("error trying to decode a no-struct type")
 	}
@@ -528,7 +533,7 @@ func (d *Decoder) parseFieldsFrom(src reflect.Value) map[string]reflect.Value {
 		tag := ftyp.Tag.Get("etf")
 
 		if ftyp.Anonymous {
-			m := d.parseFieldsFrom(fval)
+			m := deepFieldsFrom(fval)
 			maps.Copy(result, m)
 		} else {
 			if tag != "" {
