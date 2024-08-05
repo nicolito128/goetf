@@ -49,6 +49,11 @@ func (e *Encoder) Encode(v any) error {
 	return e.encode(v)
 }
 
+// ReadAll reads the entire encoder buffer, then returns a byte slice and an error.
+func (e *Encoder) ReadAll() ([]byte, error) {
+	return e.stream.readAll()
+}
+
 func (e *Encoder) init() {
 	if e.stream == nil {
 		e.stream = newStreamer(e.w)
