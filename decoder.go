@@ -280,7 +280,7 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 			}
 
 			if kind == reflect.Interface {
-				return d.decodeAnyMap(elem, vOf)
+				return d.decodeAnyMap(elem)
 			}
 
 			return d.decodeMap(elem, vOf)
@@ -441,10 +441,7 @@ func (d *Decoder) decodeMap(elem *binaryElement, src reflect.Value) any {
 	return m.Interface()
 }
 
-func (d *Decoder) decodeAnyMap(elem *binaryElement, src reflect.Value) any {
-	if src.Type().Kind() == reflect.Pointer {
-		src = derefValueOf(src)
-	}
+func (d *Decoder) decodeAnyMap(elem *binaryElement) any {
 	m := reflect.MakeMap(reflect.TypeOf(map[string]any{}))
 
 	for i := 0; i < len(elem.dict)-1; i += 2 {
