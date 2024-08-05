@@ -1,6 +1,7 @@
 package goetf_test
 
 import (
+	"maps"
 	"math"
 	"math/big"
 	"slices"
@@ -15,7 +16,7 @@ func TestEncodeSmallInteger(t *testing.T) {
 
 	got, err := goetf.Marshal(data)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	want := []byte{131, 97, 255}
@@ -30,7 +31,7 @@ func TestEncodeInteger(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 98, 0, 0, 255, 255}
@@ -43,7 +44,7 @@ func TestEncodeInteger(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 98, 0, 0, 127, 255}
@@ -56,7 +57,7 @@ func TestEncodeInteger(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 98, 127, 255, 255, 255}
@@ -72,7 +73,7 @@ func TestEncodeBig(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 110, 8, 0, 79, 246, 89, 37, 73, 0, 0, 0}
@@ -85,7 +86,7 @@ func TestEncodeBig(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 111, 0, 0, 0, 4, 0, 0, 0, 0, 1}
@@ -102,7 +103,7 @@ func TestEncodeFloat(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 70, 64, 9, 33, 251, 84, 68, 46, 234}
@@ -115,7 +116,7 @@ func TestEncodeFloat(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 70, 64, 117, 68, 132, 128, 0, 0, 0}
@@ -131,7 +132,7 @@ func TestEncodeString(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 107, 0, 16, 104, 101, 108, 108, 111, 44, 32, 101, 116, 102, 32,
@@ -145,7 +146,7 @@ func TestEncodeString(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 77, 0, 0, 0, 13, 8, 112, 104, 111, 110, 101, 32, 110, 117, 109, 98, 101, 101, 114}
@@ -186,7 +187,7 @@ func TestEncodeBool(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 119, 4, 116, 114, 117, 101}
@@ -199,7 +200,7 @@ func TestEncodeBool(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 119, 5, 102, 97, 108, 115, 101}
@@ -214,7 +215,7 @@ func TestEncodeNil(t *testing.T) {
 
 	got, err := goetf.Marshal(data)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	want := []byte{131, 119, 3, 110, 105, 108}
@@ -229,7 +230,7 @@ func TestEncodeTuples(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 104, 5, 97, 1, 97, 2, 97, 3, 97, 4, 97, 5}
@@ -242,7 +243,7 @@ func TestEncodeTuples(t *testing.T) {
 
 		got, err := goetf.Marshal(data)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		want := []byte{131, 104, 3, 104, 2, 97, 1, 97, 2, 104, 2, 97, 3, 97, 4, 104, 2, 97, 5, 97, 6}
@@ -257,7 +258,7 @@ func TestEncodeList(t *testing.T) {
 
 	got, err := goetf.Marshal(data)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	want := []byte{131, 108, 0, 0, 0, 3, 119, 1, 97, 119, 1, 98, 119, 1, 99, 106}
@@ -271,11 +272,15 @@ func TestEncodeMap(t *testing.T) {
 
 	got, err := goetf.Marshal(data)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
-	want := []byte{131, 116, 0, 0, 0, 3, 119, 1, 97, 97, 97, 119, 1, 98, 97, 98, 119, 1, 99, 97, 99}
-	if !slices.Equal(want, got) {
+	want := map[string]int{}
+	if err := goetf.Unmarshal(got, want); err != nil {
+		t.Fatal("unmarshal error:", err)
+	}
+
+	if !maps.Equal(want, data) {
 		t.Errorf("marshal error: want = %v got = %v", want, got)
 	}
 }

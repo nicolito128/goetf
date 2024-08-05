@@ -400,7 +400,7 @@ func TestDecodeMap(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
-	/*{
+	{
 		type foo struct {
 			Bar string `etf:"bar"`
 		}
@@ -416,12 +416,12 @@ func TestDecodeMap(t *testing.T) {
 			t.Fatal("unmarshal error:", err)
 		}
 
-		wBuz, oBuz := want["buz"], out["buz"]
-		wBaz, oBaz := want["baz"], out["baz"]
-		if wBuz.Bar != oBuz.Bar || wBaz.Bar != oBaz.Bar {
+		wbuz, wbaz := want["buz"], want["baz"]
+		obuz, obaz := out["buz"], out["baz"]
+		if wbuz.Bar != obuz.Bar || wbaz.Bar != obaz.Bar {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
-	}*/
+	}
 }
 
 func TestDecodeStruct(t *testing.T) {

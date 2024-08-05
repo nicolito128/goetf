@@ -101,16 +101,7 @@ func (d *Decoder) decode(v any) error {
 			if parsedOf.IsValid() {
 				vOf := derefValueOf(v)
 
-				// Set map keys
 				if vOf.Type().Kind() == reflect.Map && parsedOf.Type().Kind() == reflect.Map {
-					keys := parsedOf.MapKeys()
-					for _, key := range keys {
-						mValOf := parsedOf.MapIndex(key)
-						if key.IsValid() && mValOf.IsValid() {
-							vOf.SetMapIndex(key, mValOf)
-						}
-					}
-
 					return nil
 				}
 
@@ -283,7 +274,24 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 				return d.decodeAnyMap(elem)
 			}
 
-			return d.decodeMap(elem, vOf)
+			parsedOf := valueOf(d.decodeMap(elem, vOf))
+			if vOf.Type().Kind() == reflect.Map && parsedOf.Type().Kind() == reflect.Map {
+				keys := parsedOf.MapKeys()
+				for _, key := range keys {
+					mValOf := parsedOf.MapIndex(key)
+					if key.IsValid() && mValOf.IsValid() {
+						if vOf.Type().Elem().Kind() == reflect.Pointer {
+							ptr := reflect.New(mValOf.Type())
+							ptr.Elem().Set(mValOf)
+							vOf.SetMapIndex(key, ptr)
+						} else {
+							vOf.SetMapIndex(key, mValOf)
+						}
+					}
+				}
+
+				return nil
+			}
 		}
 	}
 
@@ -416,24 +424,36 @@ func (d *Decoder) decodeMap(elem *binaryElement, src reflect.Value) any {
 		panic("error trying to decode a no-map type")
 	}
 
-	mapType := reflect.MapOf(src.Type().Key(), src.Type().Elem())
+	var mapType reflect.Type
+	if src.Type().Elem().Kind() == reflect.Pointer {
+		mapType = reflect.MapOf(src.Type().Key(), src.Type().Elem().Elem())
+	} else {
+		mapType = reflect.MapOf(src.Type().Key(), src.Type().Elem())
+	}
+
 	m := reflect.MakeMap(mapType)
 
 	for i := 0; i < len(elem.dict)-1; i += 2 {
 		keyElem := elem.dict[i]
 		valElem := elem.dict[i+1]
 
-		keyOf := reflect.New(src.Type().Key()).Elem()
+		keyOf := reflect.New(m.Type().Key()).Elem()
 		key := d.decodeValue(keyElem, keyOf)
 
-		valOf := reflect.New(src.Type().Elem()).Elem()
+		valOf := reflect.New(m.Type().Elem()).Elem()
 		value := d.decodeValue(valElem, valOf)
 
-		if keyOf.IsValid() && valOf.IsValid() {
-			if key != nil && value != nil {
-				m.SetMapIndex(valueOf(key), valueOf(value))
-			} else {
-				m.SetMapIndex((keyOf), (valOf))
+		if key != nil && value != nil {
+			if !valueOf(key).IsZero() {
+				if src.Type().Elem().Kind() == reflect.Pointer {
+					m.SetMapIndex(valueOf(key), valueOf(value))
+				} else {
+					m.SetMapIndex(valueOf(key), valueOf(value))
+				}
+			}
+		} else {
+			if keyOf.IsValid() && valOf.IsValid() && !keyOf.IsZero() {
+				m.SetMapIndex(keyOf, valOf)
 			}
 		}
 	}
@@ -460,9 +480,13 @@ func (d *Decoder) decodeAnyMap(elem *binaryElement) any {
 			}
 
 			if key != nil && val != nil {
-				m.SetMapIndex(valueOf(key), valueOf(val))
+				if !valueOf(key).IsZero() {
+					m.SetMapIndex(valueOf(key), valueOf(val))
+				}
 			} else {
-				m.SetMapIndex((keyOf), (valOf))
+				if !keyOf.IsZero() {
+					m.SetMapIndex((keyOf), (valOf))
+				}
 			}
 		}
 	}
