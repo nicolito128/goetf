@@ -265,3 +265,17 @@ func TestEncodeList(t *testing.T) {
 		t.Errorf("marshal error: want = %v got = %v", want, got)
 	}
 }
+
+func TestEncodeMap(t *testing.T) {
+	data := map[string]int{"a": 97, "b": 98, "c": 99}
+
+	got, err := goetf.Marshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []byte{131, 116, 0, 0, 0, 3, 119, 1, 97, 97, 97, 119, 1, 98, 97, 98, 119, 1, 99, 97, 99}
+	if !slices.Equal(want, got) {
+		t.Errorf("marshal error: want = %v got = %v", want, got)
+	}
+}

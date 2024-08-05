@@ -257,8 +257,7 @@ func (e *Encoder) parseType(src reflect.Value) error {
 
 		keys := src.MapKeys()
 
-		blen := make([]byte, 4)
-		binary.BigEndian.PutUint32(blen, uint32(mapLen))
+		blen := binary.BigEndian.AppendUint32([]byte{}, uint32(mapLen))
 		e.writeBytes(blen)
 
 		for _, key := range keys {
