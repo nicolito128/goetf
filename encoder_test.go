@@ -1,4 +1,4 @@
-package goetf
+package goetf_test
 
 import (
 	"math"
@@ -6,12 +6,14 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/nicolito128/goetf"
 )
 
 func TestEncodeSmallInteger(t *testing.T) {
 	var data uint8 = 255
 
-	got, err := Marshal(data)
+	got, err := goetf.Marshal(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +28,7 @@ func TestEncodeInteger(t *testing.T) {
 	{
 		var data uint16 = math.MaxUint16
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -39,7 +41,7 @@ func TestEncodeInteger(t *testing.T) {
 	{
 		var data int16 = math.MaxInt16
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,7 +54,7 @@ func TestEncodeInteger(t *testing.T) {
 	{
 		var data int32 = math.MaxInt32
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,7 +70,7 @@ func TestEncodeBig(t *testing.T) {
 	{
 		var data int64 = 314159265359
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +83,7 @@ func TestEncodeBig(t *testing.T) {
 	{
 		data := big.NewInt(16777216)
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -98,7 +100,7 @@ func TestEncodeFloat(t *testing.T) {
 	{
 		var data float64 = 3.14159265359
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +113,7 @@ func TestEncodeFloat(t *testing.T) {
 	{
 		var data float32 = 340.28234663852885
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -127,7 +129,7 @@ func TestEncodeString(t *testing.T) {
 	{
 		data := "hello, etf world"
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -141,7 +143,7 @@ func TestEncodeString(t *testing.T) {
 	{
 		data := []byte{'p', 'h', 'o', 'n', 'e', ' ', 'n', 'u', 'm', 'b', 'e', 'e', 'r'}
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -162,7 +164,7 @@ func TestEncodeString(t *testing.T) {
 			}
 		}
 
-		got, err := Marshal(data.String())
+		got, err := goetf.Marshal(data.String())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +184,7 @@ func TestEncodeBool(t *testing.T) {
 	{
 		data := true
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -195,7 +197,7 @@ func TestEncodeBool(t *testing.T) {
 	{
 		data := false
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -210,7 +212,7 @@ func TestEncodeBool(t *testing.T) {
 func TestEncodeNil(t *testing.T) {
 	var data *int
 
-	got, err := Marshal(data)
+	got, err := goetf.Marshal(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +227,7 @@ func TestEncodeTuples(t *testing.T) {
 	{
 		data := []int{1, 2, 3, 4, 5}
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -238,7 +240,7 @@ func TestEncodeTuples(t *testing.T) {
 	{
 		data := [][]int{{1, 2}, {3, 4}, {5, 6}}
 
-		got, err := Marshal(data)
+		got, err := goetf.Marshal(data)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -253,7 +255,7 @@ func TestEncodeTuples(t *testing.T) {
 func TestEncodeList(t *testing.T) {
 	data := [3]string{"a", "b", "c"}
 
-	got, err := Marshal(data)
+	got, err := goetf.Marshal(data)
 	if err != nil {
 		t.Fatal(err)
 	}

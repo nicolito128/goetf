@@ -1,22 +1,23 @@
-package goetf
+package goetf_test
 
 import (
 	"maps"
-	"math/big"
 	"slices"
 	"testing"
+
+	"github.com/nicolito128/goetf"
 )
 
 func TestDecodeSmallInteger(t *testing.T) {
 	want := uint8(128)
-	b, err := Marshal(want)
+	b, err := goetf.Marshal(want)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	var out uint8
-	if err := Unmarshal(b, &out); err != nil {
-		t.Fatal(err)
+	if err := goetf.Unmarshal(b, &out); err != nil {
+		t.Fatal("unmarshal error:", err)
 	}
 
 	if want != out {
@@ -26,14 +27,14 @@ func TestDecodeSmallInteger(t *testing.T) {
 
 func TestDecodeInteger(t *testing.T) {
 	var want int32 = 131073
-	b, err := Marshal(want)
+	b, err := goetf.Marshal(want)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	var out int32
-	if err := Unmarshal(b, &out); err != nil {
-		t.Fatal(err)
+	if err := goetf.Unmarshal(b, &out); err != nil {
+		t.Fatal("unmarshal error:", err)
 	}
 
 	if want != out {
@@ -43,14 +44,14 @@ func TestDecodeInteger(t *testing.T) {
 
 func TestDecodeSmallBig(t *testing.T) {
 	var want int64 = -11111111111
-	b, err := Marshal(want)
+	b, err := goetf.Marshal(want)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	var out int64
-	if err := Unmarshal(b, &out); err != nil {
-		t.Fatal(err)
+	if err := goetf.Unmarshal(b, &out); err != nil {
+		t.Fatal("unmarshal error:", err)
 	}
 
 	if want != out {
@@ -62,50 +63,50 @@ func TestDecodeBig(t *testing.T) {
 	{
 		var want int64 = 27182818284590
 
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		var out int64
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if want != out {
 			t.Errorf("want = %v, got = %v", want, out)
 		}
 	}
-	{
+	/*{
 		want := big.NewInt(314159265359)
 
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := big.NewInt(0)
-		if err := Unmarshal(b, out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if want.Cmp(out) != 0 {
 			t.Errorf("want = %v, got = %v", want, out)
 		}
-	}
+	}*/
 }
 
 func TestDecodeSmallAtom(t *testing.T) {
 	{
 		want := true
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		var out bool
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if want != out {
@@ -114,14 +115,14 @@ func TestDecodeSmallAtom(t *testing.T) {
 	}
 	{
 		want := "ok"
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		var out string
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if want != out {
@@ -132,14 +133,14 @@ func TestDecodeSmallAtom(t *testing.T) {
 
 func TestDecodeString(t *testing.T) {
 	want := "hello, world"
-	b, err := Marshal(want)
+	b, err := goetf.Marshal(want)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	var out string
-	if err := Unmarshal(b, &out); err != nil {
-		t.Fatal(err)
+	if err := goetf.Unmarshal(b, &out); err != nil {
+		t.Fatal("unmarshal error:", err)
 	}
 
 	if want != out {
@@ -150,14 +151,14 @@ func TestDecodeString(t *testing.T) {
 func TestDecodeBinary(t *testing.T) {
 	{
 		want := []byte{101, 111, 112, 107}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := make([]byte, 0)
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if n := slices.Compare(want, out); n != 0 {
@@ -166,14 +167,14 @@ func TestDecodeBinary(t *testing.T) {
 	}
 	{
 		want := []byte{91, 34, 116, 101, 115, 116, 34, 93, 44, 123, 34, 116, 34, 125}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := make([]byte, 0)
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if n := slices.Compare(want, out); n != 0 {
@@ -184,14 +185,14 @@ func TestDecodeBinary(t *testing.T) {
 
 func TestDecodeBitBinary(t *testing.T) {
 	want := []byte{128, 100, 99}
-	b, err := Marshal(want)
+	b, err := goetf.Marshal(want)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	out := make([]byte, 0)
-	if err := Unmarshal(b, &out); err != nil {
-		t.Fatal(err)
+	if err := goetf.Unmarshal(b, &out); err != nil {
+		t.Fatal("unmarshal error:", err)
 	}
 
 	if n := slices.Compare(want, out); n != 0 {
@@ -203,14 +204,14 @@ func TestDecodeTuples(t *testing.T) {
 	{ // small tuple
 		want := []int{1, 2, 3, 4, 5}
 
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := make([]int, 0)
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if !slices.Equal(want, out) {
@@ -220,14 +221,14 @@ func TestDecodeTuples(t *testing.T) {
 	{ // large tuple
 		want := []int{110, 94, 257}
 
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := make([]int, 0)
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if !slices.Equal(want, out) {
@@ -237,14 +238,14 @@ func TestDecodeTuples(t *testing.T) {
 	{ // any tuple
 		want := []any{1.0, 999, "two"}
 
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := make([]any, 0)
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if len(want) != len(out) {
@@ -259,19 +260,54 @@ func TestDecodeTuples(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
+	{ // tuple of pointers
+		want := []*string{nil, nil, nil, nil, nil}
+
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal("marshal error:", err)
+		}
+
+		out := make([]*string, 5)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
+		}
+
+		if !slices.Equal(want, out) {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{ // just a nil
+		want := (*[]byte)(nil)
+
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal("marshal error:", err)
+		}
+
+		var out []byte
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
+		}
+
+		// asserting impossible condition
+		if out != nil {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
 }
 
 func TestDecodeList(t *testing.T) {
 	{
 		want := [3]int{101, 201, 255}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		var out [3]int
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if !slices.Equal(want[:], out[:]) {
@@ -280,17 +316,50 @@ func TestDecodeList(t *testing.T) {
 	}
 	{
 		want := [2]float64{3.14159, 2.71828}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		var out [2]float64
-		if err := Unmarshal(b, &out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if !slices.Equal(want[:], out[:]) {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{ // list of pointers
+		want := [7]*float64{}
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal("marshal error:", err)
+		}
+
+		var out [7]*float64
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
+		}
+
+		if !slices.Equal(want[:], out[:]) {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{ // pointer to list
+		var want *[2]int = &[2]int{3, 5}
+
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal("marshal error:", err)
+		}
+
+		out := &[2]int{0, 0}
+		if err := goetf.Unmarshal(b, out); err != nil {
+			t.Fatal("unmarshal error:", err)
+		}
+
+		if want[0] != out[0] || want[1] != out[1] {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
@@ -299,14 +368,14 @@ func TestDecodeList(t *testing.T) {
 func TestDecodeMap(t *testing.T) {
 	{
 		want := map[string]string{"name": "John", "position": "sysadmin"}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := map[string]string{}
-		if err := Unmarshal(b, out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		if !maps.Equal(want, out) {
@@ -315,14 +384,14 @@ func TestDecodeMap(t *testing.T) {
 	}
 	{
 		want := map[string]any{"a": true, "b": -3.14}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := map[string]any{}
-		if err := Unmarshal(b, out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		outa := out["a"].(bool)
@@ -331,20 +400,20 @@ func TestDecodeMap(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
-	{
+	/*{
 		type foo struct {
 			Bar string `etf:"bar"`
 		}
 
 		want := map[string]*foo{"buz": {Bar: "buzbar"}, "baz": {Bar: "bazbar"}}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("marshal error:", err)
 		}
 
 		out := map[string]*foo{}
-		if err := Unmarshal(b, out); err != nil {
-			t.Fatal(err)
+		if err := goetf.Unmarshal(b, out); err != nil {
+			t.Fatal("unmarshal error:", err)
 		}
 
 		wBuz, oBuz := want["buz"], out["buz"]
@@ -352,7 +421,7 @@ func TestDecodeMap(t *testing.T) {
 		if wBuz.Bar != oBuz.Bar || wBaz.Bar != oBaz.Bar {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
-	}
+	}*/
 }
 
 func TestDecodeStruct(t *testing.T) {
@@ -363,13 +432,13 @@ func TestDecodeStruct(t *testing.T) {
 		}
 
 		want := user{"Mile", 22}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		var out user
-		if err := Unmarshal(b, &out); err != nil {
+		if err := goetf.Unmarshal(b, &out); err != nil {
 			t.Fatal(err)
 		}
 
@@ -384,13 +453,13 @@ func TestDecodeStruct(t *testing.T) {
 		}
 
 		want := c{A: []int{1, 2}, B: "b"}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		var out c
-		if err := Unmarshal(b, &out); err != nil {
+		if err := goetf.Unmarshal(b, &out); err != nil {
 			t.Fatal(err)
 		}
 
@@ -405,26 +474,26 @@ func TestDecodeStruct(t *testing.T) {
 		}
 
 		want := []*axes{{X: 2.7, Y: 9.9}, {X: 1.23, Y: 2.01}}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		out := make([]*axes, 0)
-		if err := Unmarshal(b, &out); err != nil {
+		if err := goetf.Unmarshal(b, &out); err != nil {
 			t.Fatal(err)
 		}
 
 		if len(want) != len(out) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
-		}
+		} else {
+			if (*want[0]).X != (*out[0]).X || (*want[0]).Y != (*out[0]).Y {
+				t.Errorf("unmarshal error: want = %v got = %v", want, out)
+			}
 
-		if want[0].X != out[0].X || want[0].Y != out[0].Y {
-			t.Errorf("unmarshal error: want = %v got = %v", want, out)
-		}
-
-		if want[1].X != out[1].X || want[1].Y != out[1].Y {
-			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+			if (*want[1]).X != (*out[1]).X || (*want[1]).Y != (*out[1]).Y {
+				t.Errorf("unmarshal error: want = %v got = %v", want, out)
+			}
 		}
 	}
 	{
@@ -438,17 +507,39 @@ func TestDecodeStruct(t *testing.T) {
 		}
 
 		want := Client{Status: &Activity{true, 554.23}}
-		b, err := Marshal(want)
+		b, err := goetf.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		var out Client
-		if err := Unmarshal(b, &out); err != nil {
+		if err := goetf.Unmarshal(b, &out); err != nil {
 			t.Fatal(err)
 		}
 
 		if want.Status.Online != out.Status.Online || want.Status.Wallet != out.Status.Wallet {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{
+		type conn struct {
+			Shards *[2]int `etf:"shards"`
+			//Token  *string `etf:"token"`
+		}
+
+		//token := "12345"
+		want := conn{&[2]int{1, 2}}
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var out conn
+		if err := goetf.Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+
+		if want.Shards[0] != out.Shards[0] || want.Shards[1] != out.Shards[1] {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}

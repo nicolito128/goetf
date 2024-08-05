@@ -303,6 +303,12 @@ func (e *Encoder) parseType(src reflect.Value) error {
 			if err := e.parseType(field); err != nil {
 				return err
 			}
+
+			if field.IsValid() {
+				if field.Type().Kind() == reflect.Pointer && field.IsNil() {
+					e.writeNil()
+				}
+			}
 		}
 	}
 
