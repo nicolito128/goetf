@@ -69,7 +69,11 @@ func (e *Encoder) encode(v any) error {
 
 // parseType parses the reflected value of src and writes its representation in bytes.
 func (e *Encoder) parseType(src reflect.Value) error {
-	kind := src.Type().Kind()
+	var kind reflect.Kind
+	if src.IsValid() {
+		kind = src.Type().Kind()
+	}
+
 	switch kind {
 	case reflect.Int:
 		integer := src.Int()
@@ -208,8 +212,14 @@ func (e *Encoder) parseType(src reflect.Value) error {
 
 		for i := 0; i < tpLen; i++ {
 			elem := src.Index(i)
-			if err := e.parseType(derefValueOf(elem)); err != nil {
-				return err
+			if elem.IsValid() {
+				if err := e.parseType(valueOf(elem)); err != nil {
+					return err
+				}
+
+				if elem.Type().Kind() == reflect.Pointer && elem.IsNil() {
+					e.writeNil()
+				}
 			}
 		}
 
@@ -223,8 +233,14 @@ func (e *Encoder) parseType(src reflect.Value) error {
 
 		for i := 0; i < arrLen; i++ {
 			elem := src.Index(i)
-			if err := e.parseType(derefValueOf(elem)); err != nil {
-				return err
+			if elem.IsValid() {
+				if err := e.parseType(derefValueOf(elem)); err != nil {
+					return err
+				}
+
+				if elem.Type().Kind() == reflect.Pointer && elem.IsNil() {
+					e.writeNil()
+				}
 			}
 		}
 
@@ -246,8 +262,14 @@ func (e *Encoder) parseType(src reflect.Value) error {
 			}
 
 			value := src.MapIndex(key)
-			if err := e.parseType(derefValueOf(value)); err != nil {
-				return err
+			if value.IsValid() {
+				if err := e.parseType(derefValueOf(value)); err != nil {
+					return err
+				}
+
+				if value.Type().Kind() == reflect.Pointer && value.IsNil() {
+					e.writeNil()
+				}
 			}
 		}
 
