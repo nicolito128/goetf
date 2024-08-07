@@ -1,6 +1,7 @@
 package goetf_test
 
 import (
+	"bytes"
 	"maps"
 	"math"
 	"math/big"
@@ -336,5 +337,26 @@ func TestEncodeStructWithNil(t *testing.T) {
 	want := Account{Username: "username", Status: 15, Items: nil, Thing: nil}
 	if want.Username != out.Username || want.Status != out.Status || out.Items != nil || out.Thing != nil {
 		t.Errorf("encode error: want = %v got = %v", want, out)
+	}
+}
+
+func TestEncodeOptions(t *testing.T) {
+	data := map[string]int{"1": 1, "2": 2}
+
+	buf := bytes.NewBuffer(make([]byte, 0))
+	eng := goetf.NewEncoder(buf, goetf.WithStringOverAtom)
+
+	if err := eng.Encode(data); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := eng.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []byte{131, 116, 0, 0, 0, 2, 107, 0, 1, 49, 98, 0, 0, 0, 1, 107, 0, 1, 50, 98, 0, 0, 0, 2}
+	if !slices.Equal(want, got) {
+		t.Errorf("encode error: want = %v got = %v", want, got)
 	}
 }
