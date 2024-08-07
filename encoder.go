@@ -23,8 +23,9 @@ type Marshaler interface {
 }
 
 // Marshal returns the ETF encoding of v.
-func Marshal(v any) ([]byte, error) {
-	en := NewEncoder(bytes.NewBuffer(make([]byte, 0)))
+func Marshal(v any, opts ...EncoderOpt) ([]byte, error) {
+	buf := bytes.NewBuffer(make([]byte, 0))
+	en := NewEncoder(buf, opts...)
 	if err := en.Encode(v); err != nil {
 		return nil, err
 	}
