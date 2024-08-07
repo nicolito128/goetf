@@ -33,14 +33,21 @@ func Marshal(v any) ([]byte, error) {
 
 // An Encoder writes ETF values to an output stream.
 type Encoder struct {
+	config *EncoderConfig
+
 	w io.Writer
 
 	stream *streamer
 }
 
 // NewEncoder returns a new encoder that writes to w.
-func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{w: w}
+func NewEncoder(w io.Writer, opts ...EncoderOpt) *Encoder {
+	conf := DefaultEncoderConfig()
+	for _, opt := range opts {
+		opt(conf)
+	}
+
+	return &Encoder{config: conf, w: w}
 }
 
 // Encode writes the ETF encoding of v to the stream.
@@ -150,7 +157,7 @@ func (e *Encoder) parseType(src reflect.Value) error {
 
 		var tag ExternalTagType
 
-		if len(data) <= 255 && isValidUTF8 && !strings.Contains(str, " ") {
+		if len(data) <= 255 && isValidUTF8 && !strings.Contains(str, " ") && !e.config.StringOverAtom {
 			blen = binary.BigEndian.AppendUint16(blen, uint16(len(data)))[1:]
 			tag = EttSmallAtomUTF8
 		} else {
