@@ -1,6 +1,7 @@
 package goetf
 
 import (
+	"maps"
 	"reflect"
 )
 
@@ -50,6 +51,42 @@ func toLittleEndian(b []byte) {
 	for i := 0; i < len(b)/2; i++ {
 		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
 	}
+}
+
+func setValueNotPtr(dist reflect.Type, element reflect.Value, handleSet func(reflect.Value)) {
+	if dist.Kind() == reflect.Pointer {
+		ptr := reflect.New(element.Type())
+		ptr.Elem().Set(element)
+		handleSet(ptr)
+	} else {
+		handleSet(element)
+	}
+}
+
+func deepFieldsFrom(src reflect.Value) map[string]reflect.Value {
+	if src.Type().Kind() != reflect.Struct {
+		panic("error trying to decode a no-struct type")
+	}
+
+	result := map[string]reflect.Value{}
+	for i := 0; i < src.NumField(); i++ {
+		fval := src.Field(i)
+		ftyp := src.Type().Field(i)
+		tag := ftyp.Tag.Get("etf")
+
+		if ftyp.Anonymous {
+			m := deepFieldsFrom(fval)
+			maps.Copy(result, m)
+		} else {
+			if tag != "" {
+				result[tag] = fval
+			} else {
+				result[ftyp.Name] = fval
+			}
+		}
+	}
+
+	return result
 }
 
 // TagString returns the string representation for an external format tag.

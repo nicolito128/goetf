@@ -201,7 +201,7 @@ func TestDecodeBitBinary(t *testing.T) {
 }
 
 func TestDecodeTuples(t *testing.T) {
-	{ // small tuple
+	{
 		want := []int{1, 2, 3, 4, 5}
 
 		b, err := goetf.Marshal(want)
@@ -218,7 +218,7 @@ func TestDecodeTuples(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
-	{ // large tuple
+	{
 		want := []int{110, 94, 257}
 
 		b, err := goetf.Marshal(want)
@@ -226,7 +226,7 @@ func TestDecodeTuples(t *testing.T) {
 			t.Fatal("marshal error:", err)
 		}
 
-		out := make([]int, 0)
+		out := make([]int, 3)
 		if err := goetf.Unmarshal(b, &out); err != nil {
 			t.Fatal("unmarshal error:", err)
 		}
@@ -274,6 +274,24 @@ func TestDecodeTuples(t *testing.T) {
 		}
 
 		if !slices.Equal(want, out) {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{
+		a, b, c := "a", "b", "c"
+		want := []*string{&a, &b, &c}
+
+		data, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal("marshal error:", err)
+		}
+
+		out := make([]*string, 0)
+		if err := goetf.Unmarshal(data, &out); err != nil {
+			t.Fatal("unmarshal error:", err)
+		}
+
+		if *want[0] != *out[0] || *want[1] != *out[1] || *want[2] != *out[2] {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
@@ -363,6 +381,25 @@ func TestDecodeList(t *testing.T) {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
+	{
+		var w *[2]int = (&[2]int{3, 5})
+		want := &w
+
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal("marshal error:", err)
+		}
+
+		o := &[2]int{0, 0}
+		out := &o
+		if err := goetf.Unmarshal(b, out); err != nil {
+			t.Fatal("unmarshal error:", err)
+		}
+
+		if (*want)[0] != (*out)[0] || (*want)[1] != (*out)[1] {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
 }
 
 func TestDecodeMap(t *testing.T) {
@@ -401,25 +438,22 @@ func TestDecodeMap(t *testing.T) {
 		}
 	}
 	{
-		type foo struct {
-			Bar string `etf:"bar"`
-		}
-
-		want := map[string]*foo{"buz": {Bar: "buzbar"}, "baz": {Bar: "bazbar"}}
+		var er, el uint8 = 2, 4
+		want := map[string]*uint8{"erlang": &er, "elixir": &el}
 		b, err := goetf.Marshal(want)
 		if err != nil {
 			t.Fatal("marshal error:", err)
 		}
 
-		out := map[string]*foo{}
+		out := map[string]*uint8{}
 		if err := goetf.Unmarshal(b, out); err != nil {
 			t.Fatal("unmarshal error:", err)
 		}
 
-		wbuz, wbaz := want["buz"], want["baz"]
-		obuz, obaz := out["buz"], out["baz"]
-		if wbuz.Bar != obuz.Bar || wbaz.Bar != obaz.Bar {
-			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		for key, value := range out {
+			if *value != *want[key] {
+				t.Errorf("unmarshal error: want = %v got = %v", want, out)
+			}
 		}
 	}
 }
@@ -479,7 +513,7 @@ func TestDecodeStruct(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		out := make([]*axes, 0)
+		out := make([]*axes, 2)
 		if err := goetf.Unmarshal(b, &out); err != nil {
 			t.Fatal(err)
 		}
@@ -574,6 +608,28 @@ func TestDecodeStruct(t *testing.T) {
 		}
 
 		if want.A != out.A || want.B != out.B || want.C != out.C {
+			t.Errorf("unmarshal error: want = %v got = %v", want, out)
+		}
+	}
+	{
+		type foo struct {
+			Bar string `etf:"bar"`
+		}
+
+		want := map[string]*foo{"buz": {Bar: "buzbar"}, "baz": {Bar: "bazbar"}}
+		b, err := goetf.Marshal(want)
+		if err != nil {
+			t.Fatal("marshal error:", err)
+		}
+
+		out := map[string]*foo{}
+		if err := goetf.Unmarshal(b, out); err != nil {
+			t.Fatal("unmarshal error:", err)
+		}
+
+		wbuz, wbaz := want["buz"], want["baz"]
+		obuz, obaz := out["buz"], out["baz"]
+		if wbuz.Bar != obuz.Bar || wbaz.Bar != obaz.Bar {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}

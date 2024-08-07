@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"maps"
 	"math/big"
 	"reflect"
 
@@ -41,6 +40,8 @@ type Decoder struct {
 	cacheSize int
 	// if the buffer was touched, starting with the version flag
 	dirty bool
+	// error to check
+	err error
 }
 
 // NewDecoder returns a new *Decoder that reads from r.
@@ -89,6 +90,19 @@ func (d *Decoder) decode(v any) error {
 		d.dirty = true
 	}
 
+	vOf := valueOf(v)
+	if vOf.Type().Kind() == reflect.Pointer {
+		vOf = derefValueOf(vOf.Elem())
+	}
+
+	switch vOf.Type().Kind() {
+	case reflect.Map, reflect.Slice:
+		if vOf.IsNil() {
+			ptr := reflect.New(vOf.Type())
+			vOf.Set(ptr.Elem())
+		}
+	}
+
 	for !d.scan.eof() {
 		elem, err := d.readNext()
 		if err != nil {
@@ -99,13 +113,7 @@ func (d *Decoder) decode(v any) error {
 		if parsed != nil {
 			parsedOf := derefValueOf(parsed)
 			if parsedOf.IsValid() {
-				vOf := derefValueOf(v)
-
-				if vOf.Type().Kind() == reflect.Map && parsedOf.Type().Kind() == reflect.Map {
-					return nil
-				}
-
-				if vOf.Type().Kind() == reflect.Struct {
+				if vOf.Type().Kind() == reflect.Map || parsedOf.Type().Kind() == reflect.Map {
 					return nil
 				}
 
@@ -227,10 +235,10 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 	var kind reflect.Kind
 
 	vOf = valueOf(v)
-	if !vOf.IsValid() || !derefValueOf(v).IsValid() {
+	if !vOf.IsValid() {
 		return nil
 	}
-	kind = derefValueOf(vOf).Type().Kind()
+	kind = derefTypeOf(vOf.Type()).Kind()
 
 	switch elem.tag {
 	default:
@@ -261,36 +269,42 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 
 	case EttMap:
 		if len(elem.dict) > 0 {
-			if kind == reflect.Struct {
-				switch derefValueOf(vOf).Type() {
-				default:
-					return d.decodeStruct(elem, vOf)
-				case typeOfBigInt:
+			switch kind {
+			case reflect.Struct:
+				if vOf.Type() == typeOfBigInt {
 					return vOf.Interface().(big.Int)
-				}
-			}
-
-			if kind == reflect.Interface {
-				return d.decodeAnyMap(elem)
-			}
-
-			parsedOf := valueOf(d.decodeMap(elem, vOf))
-			if vOf.Type().Kind() == reflect.Map && parsedOf.Type().Kind() == reflect.Map {
-				keys := parsedOf.MapKeys()
-				for _, key := range keys {
-					mValOf := parsedOf.MapIndex(key)
-					if key.IsValid() && mValOf.IsValid() {
-						if vOf.Type().Elem().Kind() == reflect.Pointer {
-							ptr := reflect.New(mValOf.Type())
-							ptr.Elem().Set(mValOf)
-							vOf.SetMapIndex(key, ptr)
-						} else {
-							vOf.SetMapIndex(key, mValOf)
+				} else {
+					if vOf.Type().Kind() == reflect.Pointer {
+						if vOf.IsNil() && vOf.CanSet() {
+							ptr := reflect.New(vOf.Type().Elem())
+							ptr.Elem().SetZero()
+							vOf.Set(ptr)
 						}
 					}
+
+					return d.decodeStruct(elem, vOf)
 				}
 
-				return nil
+			case reflect.Interface:
+				return d.decodeAnyMap(elem)
+
+			case reflect.Map:
+				parsedOf := valueOf(d.decodeMap(elem, vOf))
+				if vOf.Type().Kind() == reflect.Map && parsedOf.Type().Kind() == reflect.Map {
+					keys := parsedOf.MapKeys()
+					for _, key := range keys {
+						mValOf := parsedOf.MapIndex(key)
+						if !key.IsValid() || !mValOf.IsValid() {
+							return nil
+						}
+
+						setValueNotPtr(vOf.Type().Elem(), mValOf, func(out reflect.Value) {
+							vOf.SetMapIndex(key.Convert(vOf.Type().Key()), out.Convert(vOf.Type().Elem()))
+						})
+					}
+
+					return vOf
+				}
 			}
 		}
 	}
@@ -300,7 +314,7 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 
 func (d *Decoder) decodeTuple(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() == reflect.Pointer {
-		src = derefValueOf(src)
+		src = derefValueOf(src.Elem())
 	}
 	if src.Type().Kind() != reflect.Slice {
 		panic("error trying to decode a no-slice type")
@@ -312,23 +326,37 @@ func (d *Decoder) decodeTuple(elem *binaryElement, src reflect.Value) any {
 			srcElem := src.Index(i)
 
 			parsed := d.decodeValue(item, srcElem)
-			if parsed != nil {
-				srcElem.Set(valueOf(parsed))
+			if parsed == nil {
+				return nil
 			}
 
-		} else {
-			newElem := reflect.New(derefTypeOf(src.Type().Elem())).Elem()
-			if newElem.IsValid() {
-				parsed := d.decodeValue(item, newElem)
-				parsedOf := valueOf(parsed)
-				if src.Type().Elem().Kind() == reflect.Pointer {
-					ptr := reflect.New(parsedOf.Type())
-					ptr.Elem().Set(parsedOf)
-					src = reflect.Append(src, ptr)
-				} else {
-					src = reflect.Append(src, valueOf(parsed))
-				}
+			parsedOf := valueOf(parsed)
+			if !parsedOf.IsValid() {
+				return nil
 			}
+
+			setValueNotPtr(srcElem.Type(), parsedOf, func(out reflect.Value) {
+				srcElem.Set(out.Convert(srcElem.Type()))
+			})
+		} else {
+			newElem := reflect.New(src.Type().Elem()).Elem()
+			if !newElem.IsValid() {
+				return nil
+			}
+
+			parsed := d.decodeValue(item, newElem)
+			if parsed == nil {
+				return nil
+			}
+
+			parsedOf := valueOf(parsed)
+			if !parsedOf.IsValid() {
+				return nil
+			}
+
+			setValueNotPtr(newElem.Type(), parsedOf, func(out reflect.Value) {
+				src = reflect.Append(src, out.Convert(src.Type().Elem()))
+			})
 		}
 	}
 
@@ -337,7 +365,7 @@ func (d *Decoder) decodeTuple(elem *binaryElement, src reflect.Value) any {
 
 func (d *Decoder) decodeAnyTuple(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() == reflect.Pointer {
-		src = derefValueOf(src)
+		src = derefValueOf(src.Elem())
 	}
 
 	tuple := reflect.MakeSlice(src.Type(), len(elem.items), len(elem.items))
@@ -356,7 +384,7 @@ func (d *Decoder) decodeAnyTuple(elem *binaryElement, src reflect.Value) any {
 
 func (d *Decoder) decodeList(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() == reflect.Pointer {
-		src = derefValueOf(src)
+		src = derefValueOf(src.Elem())
 	}
 	if src.Type().Kind() != reflect.Array {
 		panic("error trying to decode a no-array type")
@@ -374,13 +402,16 @@ func (d *Decoder) decodeList(elem *binaryElement, src reflect.Value) any {
 	arr := reflect.New(arrType).Elem()
 
 	for i := 0; i < arrLength; i++ {
-		arrElem := derefValueOf(arr.Index(i))
+		arrElem := arr.Index(i)
 		if arrElem.IsValid() {
 			item := elem.items[i]
 
 			parsed := d.decodeValue(item, arrElem)
 			if parsed != nil {
-				arrElem.Set(valueOf(parsed))
+				parsedOf := valueOf(parsed)
+				setValueNotPtr(arrElem.Type(), parsedOf, func(out reflect.Value) {
+					arrElem.Set(out.Convert(arr.Type().Elem()))
+				})
 			}
 		}
 	}
@@ -390,7 +421,7 @@ func (d *Decoder) decodeList(elem *binaryElement, src reflect.Value) any {
 
 func (d *Decoder) decodeAnyList(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() == reflect.Pointer {
-		src = derefValueOf(src)
+		src = derefValueOf(src.Elem())
 	}
 
 	arrLength := 0
@@ -418,7 +449,7 @@ func (d *Decoder) decodeAnyList(elem *binaryElement, src reflect.Value) any {
 
 func (d *Decoder) decodeMap(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() == reflect.Pointer {
-		src = derefValueOf(src)
+		src = derefValueOf(src.Elem())
 	}
 	if src.Type().Kind() != reflect.Map {
 		panic("error trying to decode a no-map type")
@@ -444,17 +475,12 @@ func (d *Decoder) decodeMap(elem *binaryElement, src reflect.Value) any {
 		value := d.decodeValue(valElem, valOf)
 
 		if key != nil && value != nil {
-			if !valueOf(key).IsZero() {
-				if src.Type().Elem().Kind() == reflect.Pointer {
-					m.SetMapIndex(valueOf(key), valueOf(value))
-				} else {
-					m.SetMapIndex(valueOf(key), valueOf(value))
-				}
-			}
-		} else {
-			if keyOf.IsValid() && valOf.IsValid() && !keyOf.IsZero() {
-				m.SetMapIndex(keyOf, valOf)
-			}
+			keyOf = valueOf(key)
+			valOf = valueOf(value)
+		}
+
+		if !valueOf(key).IsZero() && keyOf.IsValid() && valOf.IsValid() && !keyOf.IsZero() {
+			m.SetMapIndex(keyOf, valOf)
 		}
 	}
 
@@ -480,13 +506,12 @@ func (d *Decoder) decodeAnyMap(elem *binaryElement) any {
 			}
 
 			if key != nil && val != nil {
-				if !valueOf(key).IsZero() {
-					m.SetMapIndex(valueOf(key), valueOf(val))
-				}
-			} else {
-				if !keyOf.IsZero() {
-					m.SetMapIndex((keyOf), (valOf))
-				}
+				keyOf = valueOf(key)
+				valOf = valueOf(val)
+			}
+
+			if !keyOf.IsZero() && valOf.IsValid() {
+				m.SetMapIndex(keyOf, valOf)
 			}
 		}
 	}
@@ -496,7 +521,7 @@ func (d *Decoder) decodeAnyMap(elem *binaryElement) any {
 
 func (d *Decoder) decodeStruct(elem *binaryElement, src reflect.Value) any {
 	if src.Type().Kind() == reflect.Pointer {
-		src = derefValueOf(src)
+		src = derefValueOf(src.Elem())
 	}
 	if src.Type().Kind() != reflect.Struct {
 		panic("error trying to decode a no-struct type")
@@ -517,53 +542,15 @@ func (d *Decoder) decodeStruct(elem *binaryElement, src reflect.Value) any {
 
 			if keyOf.IsValid() && valOf.IsValid() {
 				if val != nil {
-					if field.Type().Kind() == reflect.Pointer {
-						// making the value addresable
-						parsed := reflect.New(reflect.TypeOf(val))
-						parsed.Elem().Set(valueOf(val))
-						field.Set(parsed)
-					} else {
-						field.Set(valueOf(val))
-					}
-				} else {
-					if field.Type().Kind() == reflect.Pointer {
-						// making the value addresable
-						parsed := reflect.New(valOf.Type())
-						parsed.Elem().Set(valOf)
-						field.Set(parsed)
-					} else {
-						field.Set(valOf)
-					}
+					valOf = valueOf(val)
 				}
+
+				setValueNotPtr(field.Type(), valOf, func(out reflect.Value) {
+					field.Set(out.Convert(field.Type()))
+				})
 			}
 		}
 	}
 
 	return src.Interface()
-}
-
-func deepFieldsFrom(src reflect.Value) map[string]reflect.Value {
-	if src.Type().Kind() != reflect.Struct {
-		panic("error trying to decode a no-struct type")
-	}
-
-	result := map[string]reflect.Value{}
-	for i := 0; i < src.NumField(); i++ {
-		fval := src.Field(i)
-		ftyp := src.Type().Field(i)
-		tag := ftyp.Tag.Get("etf")
-
-		if ftyp.Anonymous {
-			m := deepFieldsFrom(fval)
-			maps.Copy(result, m)
-		} else {
-			if tag != "" {
-				result[tag] = fval
-			} else {
-				result[ftyp.Name] = fval
-			}
-		}
-	}
-
-	return result
 }

@@ -29,4 +29,6 @@ var (
 	errMalformedExport        = fmt.Errorf("malformed ETF. EttExport")
 	errMalformedUnknownType   = fmt.Errorf("malformed ETF. unknown type")
 	errMalformed              = fmt.Errorf("malformed ETF")
+
+	errInvalidDecodeV = fmt.Errorf("invalid decoding value or something is wrong")
 )
