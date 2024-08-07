@@ -117,7 +117,9 @@ func (d *Decoder) decode(v any) error {
 					return nil
 				}
 
-				vOf.Set(parsedOf)
+				if vOf.Type() == parsedOf.Type() {
+					vOf.Set(parsedOf)
+				}
 			}
 		}
 	}
@@ -538,12 +540,13 @@ func (d *Decoder) decodeStruct(elem *binaryElement, src reflect.Value) any {
 
 		if field, ok := fields[valueOf(key).String()]; ok {
 			valOf := reflect.New(derefTypeOf(field.Type())).Elem()
+
 			val := d.decodeValue(valElem, valOf)
+			if val != nil {
+				valOf = valueOf(val)
+			}
 
 			if keyOf.IsValid() && valOf.IsValid() {
-				if val != nil {
-					valOf = valueOf(val)
-				}
 
 				setValueNotPtr(field.Type(), valOf, func(out reflect.Value) {
 					field.Set(out.Convert(field.Type()))
