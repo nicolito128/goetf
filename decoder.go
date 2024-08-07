@@ -247,8 +247,15 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 		d.err = fmt.Errorf("invalid value to decode")
 		return nil
 	}
-	kind = derefTypeOf(vOf.Type()).Kind()
 
+	// Decode nil pointer
+	if vOf.Type().Kind() == reflect.Pointer {
+		if slices.Equal(elem.body, []byte{110, 105, 108}) {
+			return nil
+		}
+	}
+
+	kind = derefTypeOf(vOf.Type()).Kind()
 	switch elem.tag {
 	default:
 		if vOf.IsValid() {
