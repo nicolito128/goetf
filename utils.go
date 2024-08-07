@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// valueOf ensures that reflect.ValueOf(v) is not used on another reflect.Value.
 func valueOf(v any) reflect.Value {
 	switch v := v.(type) {
 	case reflect.Value:
@@ -14,6 +15,7 @@ func valueOf(v any) reflect.Value {
 	}
 }
 
+// typeOf ensures that reflect.TypeOf(v) is not used on another reflect.Type.
 func typeOf(v any) reflect.Type {
 	switch v := v.(type) {
 	case reflect.Type:
@@ -23,6 +25,7 @@ func typeOf(v any) reflect.Type {
 	}
 }
 
+// derefValueOf recursively dereferences all pointers of a value by calling its method v.Elem().
 func derefValueOf(v any) reflect.Value {
 	vOf := valueOf(v)
 	if vOf.IsValid() {
@@ -37,6 +40,7 @@ func derefValueOf(v any) reflect.Value {
 	return vOf
 }
 
+// derefTypeOf recursively dereferences all pointers of a type by calling its method v.Elem().
 func derefTypeOf(v any) reflect.Type {
 	vOf := typeOf(v)
 	switch vOf.Kind() {
@@ -47,6 +51,7 @@ func derefTypeOf(v any) reflect.Type {
 	}
 }
 
+// toLittleEndian flips a BigEndian slice.
 func toLittleEndian(b []byte) {
 	for i := 0; i < len(b)/2; i++ {
 		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
@@ -63,6 +68,9 @@ func setValueNotPtr(dist reflect.Type, element reflect.Value, handleSet func(ref
 	}
 }
 
+// deepFieldsFrom filters all the public fields from the src struct.
+//
+// This function enters those embedded parameters that do not have the "etf" tag.
 func deepFieldsFrom(src reflect.Value) map[string]reflect.Value {
 	if src.Type().Kind() != reflect.Struct {
 		panic("error trying to decode a no-struct type")

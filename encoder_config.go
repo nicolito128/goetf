@@ -2,6 +2,7 @@ package goetf
 
 type EncoderOpt func(*EncoderConfig)
 
+// DefaultEncoderConfig creates a new default encoder configuration.
 func DefaultEncoderConfig() *EncoderConfig {
 	c := new(EncoderConfig)
 	c.StringOverAtom = false
@@ -15,6 +16,10 @@ type EncoderConfig struct {
 }
 
 // WithStringOverAtom tells the encoder to always encode strings as ETF String.
-func WithStringOverAtom(c *EncoderConfig) {
-	c.StringOverAtom = true
+//
+// StringOverAtom default value is false.
+func WithStringOverAtom(b bool) EncoderOpt {
+	return func(ec *EncoderConfig) {
+		ec.StringOverAtom = b
+	}
 }

@@ -12,10 +12,6 @@ import (
 	"github.com/philpearl/intern"
 )
 
-const defaultCacheSize = 1024 * 1024
-
-var defaultCache = intern.New(defaultCacheSize)
-
 // Unmarshaler is the interface implemented by types that can unmarshal a ETF description of themselves.
 // The input can be assumed to be a valid encoding of a ETF value.
 // UnmarshalETF must copy the ETF data if it wishes to retain the data after returning.
@@ -24,22 +20,27 @@ type Unmarshaler interface {
 }
 
 // Unmarshal parses the ETF-encoded data and stores the result in the value pointed to by v.
-func Unmarshal(data []byte, v any) error {
-	dec := NewDecoder(bytes.NewReader(data))
-	dec.cache = defaultCache
+func Unmarshal(data []byte, v any, opts ...DecoderOpt) error {
+	dec := NewDecoder(bytes.NewReader(data), opts...)
+	if len(opts) > 0 && dec.config.CacheSize > 0 {
+		dec.cache = intern.New(dec.config.CacheSize)
+	} else {
+		dec.cache = defaultInternalCache
+	}
+
 	return dec.Decode(v)
 }
 
 // A Decoder reads and decodes ETF values from an input stream buffer.
 type Decoder struct {
+	config *DecoderConfig
+
 	// buffer reader
 	r io.Reader
 	// scanner for buffer
 	scan *scanner
 	// cache for atoms
 	cache *intern.Intern
-	// number of atoms that can be stored, by default it's 4096
-	cacheSize int
 	// if the buffer was touched, starting with the version flag
 	dirty bool
 	// error to check
@@ -49,8 +50,15 @@ type Decoder struct {
 // NewDecoder returns a new *Decoder that reads from r.
 //
 // The decoder uses its own buffering.
-func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{r: r, cacheSize: 1024 * 1024}
+func NewDecoder(r io.Reader, opts ...DecoderOpt) *Decoder {
+	c := DefaultDecoderConfig()
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	d := &Decoder{r: r, config: c}
+	d.cache = intern.New(c.CacheSize)
+	return d
 }
 
 // Decode reads the next ETF-encoded data from its buffer and stores it in the value pointed to by v.
@@ -59,17 +67,9 @@ func (d *Decoder) Decode(v any) error {
 	return d.decode(v)
 }
 
-// SetCache sets a new atom cache with the input capacity.
-//
-// The default cache capacity is 1048576.
-func (d *Decoder) SetCache(cap int) {
-	d.cacheSize = cap
-	d.cache = intern.New(cap)
-}
-
 func (d *Decoder) init() {
 	if d.cache == nil {
-		d.cache = intern.New(defaultCacheSize)
+		d.cache = intern.New(d.config.CacheSize)
 	}
 
 	if d.scan == nil {
@@ -100,8 +100,7 @@ func (d *Decoder) decode(v any) error {
 	switch vOf.Type().Kind() {
 	case reflect.Map, reflect.Slice:
 		if vOf.IsNil() {
-			ptr := reflect.New(vOf.Type())
-			vOf.Set(ptr.Elem())
+			return fmt.Errorf("invalid decode value: nil reference to slice or map")
 		}
 	}
 

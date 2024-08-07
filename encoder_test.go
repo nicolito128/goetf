@@ -344,10 +344,10 @@ func TestEncodeOptions(t *testing.T) {
 	data := map[string]int{"1": 1, "2": 2}
 
 	buf := bytes.NewBuffer(make([]byte, 0))
-	eng := goetf.NewEncoder(buf, goetf.WithStringOverAtom)
+	eng := goetf.NewEncoder(buf, goetf.WithStringOverAtom(true))
 
 	if err := eng.Encode(data); err != nil {
-		t.Fatal(err)
+		t.Fatal("marshal error:", err)
 	}
 
 	got, err := eng.ReadAll()
@@ -355,8 +355,19 @@ func TestEncodeOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := []byte{131, 116, 0, 0, 0, 2, 107, 0, 1, 49, 98, 0, 0, 0, 1, 107, 0, 1, 50, 98, 0, 0, 0, 2}
-	if !slices.Equal(want, got) {
-		t.Errorf("encode error: want = %v got = %v", want, got)
+	w1 := []byte{131, 116, 0, 0, 0, 2, 107, 0, 1, 49, 98, 0, 0, 0, 1, 107, 0, 1, 50, 98, 0, 0, 0, 2}
+	w2 := []byte{131, 116, 0, 0, 0, 2, 107, 0, 1, 50, 98, 0, 0, 0, 2, 107, 0, 1, 49, 98, 0, 0, 0, 1}
+
+	if !slices.Equal(got, w1) && !slices.Equal(got, w2) {
+		t.Errorf("encode ReadAll error: got = %v want = %v or %v", got, w1, w2)
+	}
+
+	want := map[string]int{}
+	if err := goetf.Unmarshal(got, want); err != nil {
+		t.Fatal("unmarshal error:", err)
+	}
+
+	if !maps.Equal(data, want) {
+		t.Errorf("encode error: want = %v got = %v", want, data)
 	}
 }

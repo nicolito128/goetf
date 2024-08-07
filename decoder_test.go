@@ -304,12 +304,10 @@ func TestDecodeTuples(t *testing.T) {
 		}
 
 		var out []byte
-		if err := goetf.Unmarshal(b, &out); err != nil {
-			t.Fatal("unmarshal error:", err)
-		}
+		err = goetf.Unmarshal(b, &out)
 
 		// asserting impossible condition
-		if out != nil {
+		if out != nil || err == nil {
 			t.Errorf("unmarshal error: want = %v got = %v", want, out)
 		}
 	}
