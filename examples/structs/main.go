@@ -17,6 +17,7 @@ type User struct {
 
 type Profile struct {
 	Status    int           `etf:"status"`
+	VIP       *bool         `etf:"vip"`
 	LastLogin time.Duration `etf:"last_login"`
 }
 
@@ -25,7 +26,7 @@ func main() {
 		Name:    "John Dee",
 		Age:     34,
 		Active:  true,
-		Profile: Profile{Status: 1, LastLogin: time.Duration(24 * 60)},
+		Profile: Profile{Status: 0, VIP: nil, LastLogin: time.Duration(24 * 60)},
 	}
 
 	data, err := goetf.Marshal(exampleUser)

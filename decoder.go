@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/big"
 	"reflect"
+	"slices"
 
 	"github.com/philpearl/intern"
 )
@@ -539,15 +540,21 @@ func (d *Decoder) decodeStruct(elem *binaryElement, src reflect.Value) any {
 		key := d.decodeValue(keyElem, keyOf)
 
 		if field, ok := fields[valueOf(key).String()]; ok {
-			valOf := reflect.New(derefTypeOf(field.Type())).Elem()
+			// Decode nil pointer
+			if field.Type().Kind() == reflect.Pointer {
+				if slices.Equal(valElem.body, []byte{110, 105, 108}) {
+					field.SetZero()
+					continue
+				}
+			}
 
+			valOf := reflect.New(derefTypeOf(field.Type())).Elem()
 			val := d.decodeValue(valElem, valOf)
 			if val != nil {
 				valOf = valueOf(val)
 			}
 
 			if keyOf.IsValid() && valOf.IsValid() {
-
 				setValueNotPtr(field.Type(), valOf, func(out reflect.Value) {
 					field.Set(out.Convert(field.Type()))
 				})
