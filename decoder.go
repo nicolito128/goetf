@@ -3,6 +3,7 @@ package goetf
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/big"
 	"reflect"
@@ -111,6 +112,10 @@ func (d *Decoder) decode(v any) error {
 		}
 
 		parsed := d.decodeValue(elem, v)
+		if d.err != nil {
+			return d.err
+		}
+
 		if parsed != nil {
 			parsedOf := derefValueOf(parsed)
 			if parsedOf.IsValid() {
@@ -239,6 +244,7 @@ func (d *Decoder) decodeValue(elem *binaryElement, v any) any {
 
 	vOf = valueOf(v)
 	if !vOf.IsValid() {
+		d.err = fmt.Errorf("invalid value to decode")
 		return nil
 	}
 	kind = derefTypeOf(vOf.Type()).Kind()
@@ -320,7 +326,8 @@ func (d *Decoder) decodeTuple(elem *binaryElement, src reflect.Value) any {
 		src = derefValueOf(src.Elem())
 	}
 	if src.Type().Kind() != reflect.Slice {
-		panic("error trying to decode a no-slice type")
+		d.err = fmt.Errorf("error trying to decode a no-slice type")
+		return nil
 	}
 
 	length := src.Len()
@@ -390,7 +397,8 @@ func (d *Decoder) decodeList(elem *binaryElement, src reflect.Value) any {
 		src = derefValueOf(src.Elem())
 	}
 	if src.Type().Kind() != reflect.Array {
-		panic("error trying to decode a no-array type")
+		d.err = fmt.Errorf("error trying to decode a no-array type")
+		return nil
 	}
 
 	arrLength := 0
@@ -455,7 +463,8 @@ func (d *Decoder) decodeMap(elem *binaryElement, src reflect.Value) any {
 		src = derefValueOf(src.Elem())
 	}
 	if src.Type().Kind() != reflect.Map {
-		panic("error trying to decode a no-map type")
+		d.err = fmt.Errorf("error trying to decode a no-map type")
+		return nil
 	}
 
 	var mapType reflect.Type
