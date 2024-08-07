@@ -82,7 +82,7 @@ func (e *Encoder) parseType(src reflect.Value) error {
 	switch kind {
 	case reflect.Int:
 		integer := src.Int()
-		typ := e.assertNumericType(integer)
+		typ := e.assertIntType(integer)
 		e.parseType(valueOf(typ))
 
 	case reflect.Uint:
@@ -366,10 +366,8 @@ func (e *Encoder) writeLargeBig(src reflect.Value) error {
 	return nil
 }
 
-func (e *Encoder) assertNumericType(i int64) any {
+func (e *Encoder) assertIntType(i int64) any {
 	switch {
-	case 0 < i && i < math.MaxUint8:
-		return uint8(i)
 	case math.MinInt16 < i && i < math.MaxInt16:
 		return int16(i)
 	case math.MinInt32 < i && i < math.MaxInt32:

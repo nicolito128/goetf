@@ -234,7 +234,7 @@ func TestEncodeTuples(t *testing.T) {
 			t.Fatal("marshal error:", err)
 		}
 
-		want := []byte{131, 104, 5, 97, 1, 97, 2, 97, 3, 97, 4, 97, 5}
+		want := []byte{131, 104, 5, 98, 0, 0, 0, 1, 98, 0, 0, 0, 2, 98, 0, 0, 0, 3, 98, 0, 0, 0, 4, 98, 0, 0, 0, 5}
 		if !slices.Equal(want, got) {
 			t.Errorf("encode error: want = %v got = %v", want, got)
 		}
@@ -247,7 +247,7 @@ func TestEncodeTuples(t *testing.T) {
 			t.Fatal("marshal error:", err)
 		}
 
-		want := []byte{131, 104, 3, 104, 2, 97, 1, 97, 2, 104, 2, 97, 3, 97, 4, 104, 2, 97, 5, 97, 6}
+		want := []byte{131, 104, 3, 104, 2, 98, 0, 0, 0, 1, 98, 0, 0, 0, 2, 104, 2, 98, 0, 0, 0, 3, 98, 0, 0, 0, 4, 104, 2, 98, 0, 0, 0, 5, 98, 0, 0, 0, 6}
 		if !slices.Equal(want, got) {
 			t.Errorf("encode error: want = %v got = %v", want, got)
 		}
