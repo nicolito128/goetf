@@ -35,7 +35,6 @@ Or use Unmarshal to decode the value:
 		fmt.Println("Output:", out)
 	}
 
-Alternatively, you can use the goetf.NewEncoder or goetf.NewDecoder functions
-to create your own decoder/encoder.
+Alternatively, you can use the NewEncoder or NewDecoder functions to create your owns.
 */
 package goetf
