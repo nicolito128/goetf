@@ -316,14 +316,9 @@ func (e *Encoder) parseBinary(src reflect.Value) {
 	l := src.Len()
 
 	blen := binary.BigEndian.AppendUint32([]byte{}, uint32(l))
-	if l%8 == 0 {
-		e.writeByte(EttBinary)
-		e.writeBytes(blen)
-	} else {
-		e.writeByte(EttBitBinary)
-		e.writeBytes(blen)
-		e.writeByte(8)
-	}
+	e.writeByte(EttBitBinary)
+	e.writeBytes(blen)
+	e.writeByte(8)
 
 	for i := 0; i < l; i++ {
 		b := byte(src.Index(i).Uint())
