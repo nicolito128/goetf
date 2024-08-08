@@ -141,7 +141,7 @@ func (e *Encoder) parseType(src reflect.Value) error {
 		unsigned := src.Uint()
 		data := binary.LittleEndian.AppendUint64(make([]byte, 0), unsigned)
 		if len(data) > 255 {
-			return fmt.Errorf("parsing int64 error: invalid data size")
+			return fmt.Errorf("parsing uint64 error: invalid data size")
 		}
 		e.writeBytes([]byte{EttSmallBig, byte(len(data)), 0}, data)
 
