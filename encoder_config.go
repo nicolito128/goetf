@@ -4,9 +4,9 @@ type EncoderOpt func(*EncoderConfig)
 
 // DefaultEncoderConfig creates a new default encoder configuration.
 func DefaultEncoderConfig() *EncoderConfig {
-	c := new(EncoderConfig)
-	c.StringOverAtom = false
-	return c
+	return &EncoderConfig{
+		StringOverAtom: false,
+	}
 }
 
 // An EncoderConfig struct to handle encoding.
