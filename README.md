@@ -68,9 +68,9 @@ For both examples, use the `go run` command, like:
 
 	go run example_file.go
 
-### See more examples
+### Examples
 
-**Encode/decode structs**: Learn more [in this example](./examples/structs/main.go)
+* Visit the [examples folder](./examples) for more sample codes.
 
 ## References
 
