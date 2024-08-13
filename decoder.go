@@ -22,12 +22,6 @@ type Unmarshaler interface {
 // Unmarshal parses the ETF-encoded data and stores the result in the value pointed to by v.
 func Unmarshal(data []byte, v any, opts ...DecoderOpt) error {
 	dec := NewDecoder(bytes.NewReader(data), opts...)
-	if len(opts) > 0 && dec.config.CacheSize > 0 {
-		dec.cache = intern.New(dec.config.CacheSize)
-	} else {
-		dec.cache = defaultInternalCache
-	}
-
 	return dec.Decode(v)
 }
 
@@ -55,9 +49,11 @@ func NewDecoder(r io.Reader, opts ...DecoderOpt) *Decoder {
 	for _, opt := range opts {
 		opt(c)
 	}
-
 	d := &Decoder{r: r, config: c}
-	d.cache = intern.New(c.CacheSize)
+	if (len(opts) > 0 && c.CacheSize <= 0) || c.CacheSize == DefaultCacheSize {
+		d.config.CacheSize = DefaultCacheSize
+		d.cache = defaultInternalCache
+	}
 	return d
 }
 
